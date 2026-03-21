@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from io import BytesIO
 import altair as alt
+import time
 
 from dotenv import load_dotenv
 from groq import Groq
@@ -47,38 +48,38 @@ def classify_with_regex(text):
 
 
 # LLM fallback
-def classify_with_llm(text):
-    prompt = f"""
-    You are a financial transaction classifier. Classify this transaction into one of the following categories:
-
-    Income from Mobile Money, Income from Bank, Deposited to M-PESA, Mobile Money Transfer,
-    Transaction Cost, Shopping, Airtime Purchase, Internet Bundles Buy, Paybill Payment,
-    Withdrawn from MPESA, Online Bill, Utility Bill, Transport
-
-    Transaction:
-    {text}
-
-    Return only the category inside <category></category>.
-    Do not include any explanation, only the category tag.
+@st.cache_data(show_spinner=False)
+def classify_transactions_batch(text_list):
     """
+    text_list: list of transaction strings
+    Returns: list of categories in the same order
+    """
+    # Build prompt for all transactions at once
+    prompt = "You are a financial transaction classifier. Classify each transaction into one of the following categories:\n\n"
+    prompt += "Income from Mobile Money, Income from Bank, Deposited to M-PESA, Mobile Money Transfer, Transaction Cost, Shopping, Airtime Purchase, Internet Bundles Buy, Paybill Payment, Withdrawn from MPESA, Online Bill, Utility Bill, Transport\n\n"
+    prompt += "Return the category for each transaction on a separate line using <category></category> tags. Do NOT include explanations.\n\n"
+    prompt += "Transactions:\n"
+    for i, text in enumerate(text_list, 1):
+        prompt += f"{i}. {text}\n"
+
     chat_completion = groq.chat.completions.create(
         messages=[{"role": "user", "content": prompt}],
         model="llama-3.3-70b-versatile",
         temperature=0.3
     )
-    content = chat_completion.choices[0].message.content
-    match = re.search(r'<category>(.*)<\/category>', content, flags=re.DOTALL)
-    category = "Unclassified"
-    if match:
-        category = match.group(1).strip()
-    return category
 
-# Main transaction classifier
-def classify_transaction(text):
-    label = classify_with_regex(text)
-    if label:
-        return label, "regex"
-    return classify_with_llm(text), "llm"
+    content = chat_completion.choices[0].message.content
+    categories = []
+
+    # Extract all <category> tags line by line
+    for match in re.findall(r'<category>(.*?)<\/category>', content, flags=re.DOTALL):
+        categories.append(match.strip())
+
+    # If the number of categories returned < number of transactions, pad with "Unclassified"
+    while len(categories) < len(text_list):
+        categories.append("Unclassified")
+
+    return categories
 
 
 # Clean details
@@ -195,10 +196,16 @@ if uploaded_file:
     df["Amount"] = df["Paid In"] - df["Withdrawn"]
     df["Category"] = df["Amount"].apply(label_transaction)
 
-    # Classify transactions
-    results = df["Details"].apply(classify_transaction)
-    df["Subcategory"] = results.apply(lambda x: x[0])
-    df["Method"] = results.apply(lambda x: x[1])
+    # Classify transactions using batch LLM + regex fallback
+    llm_needed_mask = df["Details"].apply(lambda x: classify_with_regex(x) is None)
+    llm_texts = df.loc[llm_needed_mask, "Details"].tolist()
+    llm_categories = classify_transactions_batch(llm_texts)
+    df.loc[llm_needed_mask, "Subcategory"] = llm_categories
+    df.loc[llm_needed_mask, "Method"] = "llm"
+    
+    # Assigning regex classifications for the rest
+    df.loc[~llm_needed_mask, "Subcategory"] = df.loc[~llm_needed_mask, "Details"].apply(classify_with_regex)
+    df.loc[~llm_needed_mask, "Method"] = "regex"
 
     # Download CSV
     csv_bytes = df.to_csv(index=False).encode("utf-8")
