@@ -12,8 +12,9 @@ from groq import Groq
 import os
 
 load_dotenv()
-groq = Groq()
 
+groq_api_key = st.secrets["GROQ_API_KEY"]
+groq = Groq(api_key=groq_api_key)
 
 # Regex classifier
 def classify_with_regex(text):
