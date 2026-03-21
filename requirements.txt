@@ -7,5 +7,6 @@ scikit-learn
 pdfplumber
 openpyxl
 pikepdf
-streamlit
-altair
+
+streamlit==1.30.0
+altair==4.2.2
