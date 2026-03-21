@@ -6,7 +6,6 @@ pandas
 scikit-learn
 openpyxl
 pikepdf
-pillow==10.1.0
 pdfplumber
-streamlit==1.30.0
-altair==4.2.2
+streamlit
+altair
