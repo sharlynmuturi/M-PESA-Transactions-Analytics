@@ -19,8 +19,6 @@ This projects uses a **Streamlit web app** to handle the entire pipeline from PD
 
 ## Technologies Used
 
-## 
-
 | Category | Tool/Library | Purpose |
 | --- | --- | --- |
 | PDF Handling | pikepdf | Unlock password-protected PDFs |
@@ -33,8 +31,6 @@ This projects uses a **Streamlit web app** to handle the entire pipeline from PD
 * * *
 
 ## Run Locally
-
-## 
 
 1.  **Clone the repository**
 
@@ -84,8 +80,6 @@ Processed data will be stored in the resources folder as `unlocked_statement.pdf
 * * *
 
 ## Future Enhancements
-
-## 
 
 *   Integrate **budgeting**.
 *   Enable **multi-file upload** for batch processing multiple statements.
