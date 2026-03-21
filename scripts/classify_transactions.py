@@ -74,17 +74,6 @@ def classify_transactions_batch(text_list):
         categories.append("Unclassified")
 
     return categories
-    
-# Main classifier
-def classify_transaction(text):
-    # Regex first
-    label = classify_with_regex(text)
-    if label:
-        return label, "regex"
-
-    # Fallback to LLM
-    llm_label = classify_with_llm(text)
-    return llm_label, "llm"
 
 # CSV classification
 def classify_csv(input_file, output_file="mpesa_classified.csv"):
