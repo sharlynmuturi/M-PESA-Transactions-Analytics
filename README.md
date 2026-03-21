@@ -24,6 +24,7 @@ This projects uses a **Streamlit web app** to handle the entire pipeline from PD
 | PDF Handling | pikepdf | Unlock password-protected PDFs |
 | PDF Extraction | pdfplumber | Extract tables from PDF pages |
 | Data Manipulation | pandas | Clean, transform, aggregate data |
+| Embeddings | sentence-transformers | Encode transactions to group similar entries and identify patterns |
 | Regex | re | Extract transaction partners & classify patterns |
 | AI/LLM | Groq| LLM fallback for classification |
 
