@@ -210,7 +210,7 @@ if uploaded_file:
     )
     
     # Visualizations
-    st.subheader("Transaction Summary Visualizations")
+    st.header("Transaction Summary Visualizations")
 
     # Filtering out Neutral
     df_viz = df[df["Category"] != "Neutral"].copy()
