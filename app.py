@@ -123,7 +123,7 @@ def label_transaction(amount):
 
 # Streamlit UI
 st.set_page_config(page_title="M-PESA Transactions Classifier", layout="wide")
-st.title("M-PESA Statement Cleaner & Classifier")
+st.title("M-PESA Transactions Analytics Platform")
 
 uploaded_file = st.file_uploader("Upload your M-PESA PDF statement", type=["pdf"])
 
@@ -141,8 +141,7 @@ if uploaded_file:
     try:
         with pikepdf.open(pdf_bytes, password=pdf_password) as pdf:
             pdf.save(unlocked_bytes)
-        st.success("PDF unlocked successfully!")
-        st.info("Running classification. Please wait.....")
+        st.success("PDF unlocked successfully! Classifying transactions...")
         
     except Exception as e:
         st.error(f"Error unlocking PDF: {e}")
