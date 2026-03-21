@@ -8,4 +8,4 @@ openpyxl
 pikepdf
 pdfplumber
 streamlit
-altair
+plotly
