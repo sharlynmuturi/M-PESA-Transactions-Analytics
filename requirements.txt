@@ -9,4 +9,4 @@ pikepdf
 pdfplumber
 
 streamlit
-altair
+altair<5
