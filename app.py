@@ -141,7 +141,7 @@ if uploaded_file:
     try:
         with pikepdf.open(pdf_bytes, password=pdf_password) as pdf:
             pdf.save(unlocked_bytes)
-        st.success("PDF unlocked successfully! Classifying transactions...")
+        st.success("PDF unlocked successfully! Analyzing transactions...")
         
     except Exception as e:
         st.error(f"Error unlocking PDF: {e}")
