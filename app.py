@@ -5,7 +5,7 @@ import pdfplumber
 import re
 from pathlib import Path
 from io import BytesIO
-import altair as alt
+import plotly.express as px
 
 from dotenv import load_dotenv
 from groq import Groq
@@ -208,66 +208,82 @@ if uploaded_file:
         file_name="mpesa_classified.csv",
         mime="text/csv"
     )
+
+
     
-    # Visualizations
+    
+    # -------------------------------
+    # Streamlit Visualization Section
+    # -------------------------------
     st.subheader("Transaction Summary Visualizations")
-
-    # Filtering out Neutral
-    df_viz = df[df["Category"] != "Neutral"].copy()
     
-    # Taking absolute values for expenses
+    # Filtering out Neutral transactions and taking absolute amounts
+    df_viz = df[df["Category"] != "Neutral"].copy()
     df_viz["Abs_Amount"] = df_viz["Amount"].abs()
-
+    
     col1, col2 = st.columns([1, 2])
     
-    # Left
+    # -------------------------------
+    # Left Column: Total Income vs Expenses
+    # -------------------------------
     with col1:
+        st.markdown("### Income vs Expenses")
+    
         # Time filter
-        time_filter = st.radio("Filter transactions by:", ["All Time", "Year", "Month", "Week", "Day of Week"])
-        
+        time_filter = st.radio(
+            "Filter transactions by:", ["All Time", "Year", "Month", "Week", "Day of Week"]
+        )
+    
         filtered_df = df_viz.copy()
-        
+    
         if time_filter == "Year":
             year_options = sorted(filtered_df['Year'].dropna().unique())
             selected_year = st.selectbox("Select Year:", year_options)
             filtered_df = filtered_df[filtered_df['Year'] == selected_year]
-        
+    
         elif time_filter == "Month":
             month_options = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
             selected_month = st.selectbox("Select Month:", month_options)
             filtered_df = filtered_df[filtered_df['Month'] == selected_month]
-        
+    
         elif time_filter == "Week":
+            if 'Week' not in filtered_df.columns:
+                filtered_df['Week'] = filtered_df['Completion Time'].dt.isocalendar().week
             week_options = sorted(filtered_df['Week'].dropna().unique())
             selected_week = st.selectbox("Select Week Number:", week_options)
             filtered_df = filtered_df[filtered_df['Week'] == selected_week]
-        
+    
         elif time_filter == "Day of Week":
             day_options = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
             selected_day = st.selectbox("Select Day:", day_options)
             filtered_df = filtered_df[filtered_df['Day'] == selected_day]
-
-        # Total amounts by category
-        st.markdown("### Income vs Expenses")
+    
+        # Total amounts by Category
         category_summary = filtered_df.groupby("Category")["Abs_Amount"].sum().reset_index()
-        
+    
         if not category_summary.empty:
-            chart_total = alt.Chart(category_summary).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
-                x=alt.X("Category:N", sort=None, title="Category"),
-                y=alt.Y("Abs_Amount:Q", title="Amount (Ksh)"),
-                color=alt.Color("Category:N", legend=None),
-                tooltip=[alt.Tooltip("Category:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
-            ).properties(width=200, height=400)
-            st.altair_chart(chart_total, use_container_width=True)
+            fig_total = px.bar(
+                category_summary,
+                x="Category",
+                y="Abs_Amount",
+                color="Category",
+                text="Abs_Amount",
+                labels={"Abs_Amount":"Amount (Ksh)"},
+                title="Income vs Expenses"
+            )
+            fig_total.update_layout(showlegend=False)
+            st.plotly_chart(fig_total, use_container_width=True)
         else:
             st.info("No transactions for the selected time filter.")
     
-    # Right
+    # -------------------------------
+    # Right Column: Subcategory Breakdown
+    # -------------------------------
     with col2:
         st.markdown("### Subcategory Breakdown")
-        
+    
         if not filtered_df.empty:
-            # select a category to visualize
+            # Category selection for breakdown
             category_options = filtered_df["Category"].unique().tolist()
             selected_cat = st.selectbox("Select Category to visualize:", category_options)
             cat_df = filtered_df[filtered_df["Category"] == selected_cat].copy()
@@ -279,17 +295,24 @@ if uploaded_file:
                 .reset_index()
                 .sort_values("Abs_Amount", ascending=True)
             )
-            chart_subcat = alt.Chart(subcat_summary).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
-                y=alt.Y("Subcategory:N", sort="-x", title="Subcategory"),
-                x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
-                color=alt.Color("Subcategory:N", legend=None),
-                tooltip=[alt.Tooltip("Subcategory:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
-            ).properties(width=500, height=400)
-            st.altair_chart(chart_subcat, use_container_width=True)
     
-            # Details breakdown
+            fig_subcat = px.bar(
+                subcat_summary,
+                x="Abs_Amount",
+                y="Subcategory",
+                orientation="h",
+                color="Subcategory",
+                text="Abs_Amount",
+                labels={"Abs_Amount":"Amount (Ksh)", "Subcategory":"Subcategory"},
+                title=f"{selected_cat} Breakdown"
+            )
+            fig_subcat.update_layout(showlegend=False)
+            st.plotly_chart(fig_subcat, use_container_width=True)
+    
+            # Subcategory Notes / Transaction Details
             subcat_options = cat_df["Subcategory"].unique().tolist()
             selected_subcat = st.selectbox("Select Subcategory to see transaction details:", subcat_options)
+    
             notes_df = (
                 cat_df[cat_df["Subcategory"] == selected_subcat]
                 .groupby("Notes")["Abs_Amount"]
@@ -297,15 +320,21 @@ if uploaded_file:
                 .reset_index()
                 .sort_values("Abs_Amount", ascending=True)
             )
+    
             if not notes_df.empty:
-                chart_notes = alt.Chart(notes_df).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
-                    y=alt.Y("Notes:N", sort="-x", title="Transaction Details"),
-                    x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
-                    color=alt.Color("Notes:N", legend=None),
-                    tooltip=[alt.Tooltip("Notes:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
-                ).properties(width=500, height=400)
-                st.altair_chart(chart_notes, use_container_width=True)
+                fig_notes = px.bar(
+                    notes_df,
+                    x="Abs_Amount",
+                    y="Notes",
+                    orientation="h",
+                    color="Notes",
+                    text="Abs_Amount",
+                    labels={"Abs_Amount":"Amount (Ksh)", "Notes":"Transaction Details"},
+                    title=f"{selected_subcat} Transaction Details"
+                )
+                fig_notes.update_layout(showlegend=False)
+                st.plotly_chart(fig_notes, use_container_width=True)
             else:
-                st.info("No detail available for this Subcategory.")
+                st.info("No transaction details available for this Subcategory.")
         else:
             st.info("No transactions for the selected time filter.")
