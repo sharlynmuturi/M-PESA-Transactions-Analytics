@@ -1,0 +1,10 @@
+python-dotenv
+groq
+sentence-transformers
+joblib
+pandas
+scikit-learn
+pdfplumber
+openpyxl
+pikepdf
+streamlit
