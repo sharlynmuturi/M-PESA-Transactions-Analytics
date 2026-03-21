@@ -10,7 +10,9 @@ groq = Groq()
 
 # Regex classifier
 def classify_with_regex(text):
-    text = text.lower()
+    if pd.isna(text):
+        text = ""
+    text = str(text).lower()
     
     patterns = {
         r"funds received from": "Income from Mobile Money",
