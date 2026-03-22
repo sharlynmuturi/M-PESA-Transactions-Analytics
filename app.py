@@ -361,6 +361,28 @@ if uploaded_file:
         
         st.markdown("### Net Cash Flow Trend")
         st.altair_chart(chart_cashflow, use_container_width=True)
+
+        # Tooltip
+        with st.expander("How transactions are classified"):
+            st.write(
+                """
+                Transactions are categorized based on keyword patterns:
+        
+                **Income** – money coming into M-PESA:
+                - **Received** → transfers sent into your M-PESA account from others  
+                - **Deposits** → cash deposited via agents or deposited from M-Shwari  
+                - **Reversals** → any reversed transactions  
+        
+                **Expenses** – money leaving M-PESA:
+                - **Sent** → transfered to others via Send Money  
+                - **Shopping** → payments to till numbers or Pochi la Biashara  
+                - **Bills** → Paybill payments, electricity (KPLC), airtime, or data bundles  
+                - **Withdrawals** → cash withdrawn from M-PESA or moved to M-Shwari  
+                - **Transaction Costs** → charges for withdrawals, transfers, or Paybill payments  
+        
+                Transactions with unclear descriptions are classified using AI for better accuracy.
+                """
+            )
         
     # Right
 
