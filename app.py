@@ -415,17 +415,20 @@ if uploaded_file:
             
             st.altair_chart(chart_main, use_container_width=True)
 
-            # Select MAIN category 
+            
+            # Select MAIN category
             main_options = cat_df["MainCategory"].unique().tolist()
             selected_main = st.selectbox("Select Subcategory:", main_options)
             
             main_df = cat_df[cat_df["MainCategory"] == selected_main]
             
-            # Keep only rows where SubCategoryDetail exists
-            detail_df = main_df[main_df["SubCategoryDetail"].notna() & (main_df["SubCategoryDetail"] != "")]
+            # Check if this main category has any subdetails
+            has_subdetails = main_df["SubCategoryDetail"].notna() & (main_df["SubCategoryDetail"] != "")
+            detail_df = main_df[has_subdetails]
             
-            # Only show subcategory breakdown chart if there are subdetails
+            # Only plot Subcategory Detail chart if there are real subdetails
             if not detail_df.empty:
+                # Breakdown into sub-details
                 detail_summary = (
                     detail_df.groupby("SubCategoryDetail")["Abs_Amount"]
                     .sum()
@@ -444,15 +447,15 @@ if uploaded_file:
             
                 st.altair_chart(chart_detail, use_container_width=True)
             
-                # Dropdown for selecting subdetail only if there are subdetails
+                # Show dropdown for subdetail selection
                 detail_options = detail_df["SubCategoryDetail"].unique().tolist()
                 selected_detail = st.selectbox(
                     "See details of the top transactions in the subcategory:", 
                     detail_options
                 )
-                
+            
                 notes_df = (
-                    main_df[main_df["SubCategoryDetail"] == selected_detail]
+                    detail_df[detail_df["SubCategoryDetail"] == selected_detail]
                     .groupby("Notes")["Abs_Amount"]
                     .sum()
                     .reset_index()
@@ -461,7 +464,7 @@ if uploaded_file:
                 )
             
             else:
-                # No subdetails exist → go straight to top transactions
+                # No subdetails → skip the chart and dropdown
                 selected_detail = None
                 notes_df = (
                     main_df.groupby("Notes")["Abs_Amount"]
