@@ -350,20 +350,6 @@ if uploaded_file:
         else:
             st.info("No transactions for the selected time filter.")
 
-        # Daily Spending Pattern
-        day_summary = expense_df.groupby("Day")["Abs_Amount"].sum().reindex([
-            "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"
-        ]).reset_index()
-        
-        chart_day = alt.Chart(day_summary).mark_bar().encode(
-            x="Day:N",
-            y="Abs_Amount:Q",
-            tooltip=["Day", "Abs_Amount"]
-        )
-        
-        st.markdown("### Spending by Day of Week")
-        st.altair_chart(chart_day, use_container_width=True)
-
     # Right
 
     with col2:
