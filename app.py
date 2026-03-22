@@ -300,14 +300,15 @@ if uploaded_file:
     df_viz["Abs_Amount"] = df_viz["Amount"].abs()
 
 
-    # Time filter
-    time_filter = st.radio("Filter transactions by:", ["All Time", "Year", "Month", "Week", "Day of Week"])
+
 
     col1, col2 = st.columns([1, 2])
 
     # Left
 
     with col1:
+        # Time filter
+        time_filter = st.radio("Filter transactions by:", ["All Time", "Year", "Month", "Week", "Day of Week"])
         
         filtered_df = df_viz.copy()
         
