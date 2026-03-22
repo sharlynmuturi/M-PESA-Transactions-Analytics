@@ -263,6 +263,21 @@ if uploaded_file:
     df.loc[~llm_needed_mask, "Subcategory"] = df.loc[~llm_needed_mask, "Details"].apply(classify_with_regex)
     df.loc[~llm_needed_mask, "Method"] = "regex"
 
+    # Split subcategory into parent + child
+    def split_subcategory(subcat):
+        if pd.isna(subcat):
+            return ("Unclassified", "Unclassified")
+        
+        match = re.match(r"(.+?)\s*\((.+)\)", subcat)
+        if match:
+            return match.group(1).strip(), match.group(2).strip()
+        else:
+            return subcat.strip(), subcat.strip()
+    
+    df[["MainCategory", "SubCategoryDetail"]] = df["Subcategory"].apply(
+        lambda x: pd.Series(split_subcategory(x))
+    )
+
     # Download CSV
     csv_bytes = df.to_csv(index=False).encode("utf-8")
     st.download_button(
@@ -333,28 +348,62 @@ if uploaded_file:
             # select a category to visualize
             category_options = filtered_df["Category"].unique().tolist()
             selected_cat = st.selectbox("Select Category to visualize:", category_options)
+            
             cat_df = filtered_df[filtered_df["Category"] == selected_cat].copy()
-    
-            # Subcategory chart
-            subcat_summary = (
-                cat_df.groupby("Subcategory")["Abs_Amount"]
+            
+            # Aggregate by main category (before brackets)
+            main_summary = (
+                cat_df.groupby("MainCategory")["Abs_Amount"]
                 .sum()
                 .reset_index()
                 .sort_values("Abs_Amount", ascending=True)
             )
-            chart_subcat = alt.Chart(subcat_summary).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
-                y=alt.Y("Subcategory:N", sort="-x", title="Subcategory"),
+            
+            chart_main = alt.Chart(main_summary).mark_bar(
+                cornerRadiusTopLeft=3, cornerRadiusTopRight=3
+            ).encode(
+                y=alt.Y("MainCategory:N", sort="-x", title="Main Category"),
                 x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
-                color=alt.Color("Subcategory:N", legend=None),
-                tooltip=[alt.Tooltip("Subcategory:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+                color=alt.Color("MainCategory:N", legend=None),
+                tooltip=[alt.Tooltip("MainCategory:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
             ).properties(width=500, height=400)
-            st.altair_chart(chart_subcat, use_container_width=True)
+            
+            st.altair_chart(chart_main, use_container_width=True)
+
+            # Select MAIN category (e.g. Shopping)
+            main_options = cat_df["MainCategory"].unique().tolist()
+            selected_main = st.selectbox("Select Category:", main_options)
+            
+            main_df = cat_df[cat_df["MainCategory"] == selected_main]
+            
+            # Breakdown into sub-details (Till, Pochi etc.)
+            detail_summary = (
+                main_df.groupby("SubCategoryDetail")["Abs_Amount"]
+                .sum()
+                .reset_index()
+                .sort_values("Abs_Amount", ascending=True)
+            )
+            
+            chart_detail = alt.Chart(detail_summary).mark_bar(
+                cornerRadiusTopLeft=3, cornerRadiusTopRight=3
+            ).encode(
+                y=alt.Y("SubCategoryDetail:N", sort="-x", title="Subcategory Detail"),
+                x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
+                color=alt.Color("SubCategoryDetail:N", legend=None),
+                tooltip=[alt.Tooltip("SubCategoryDetail:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+            ).properties(width=500, height=400)
+            
+            st.altair_chart(chart_detail, use_container_width=True)            
     
             # Details breakdown
-            subcat_options = cat_df["Subcategory"].unique().tolist()
-            selected_subcat = st.selectbox("Select Subcategory to see transaction details:", subcat_options)
+            detail_options = main_df["SubCategoryDetail"].unique().tolist()
+            selected_detail = st.selectbox(
+                "Select Subcategory Detail to see transaction details:", 
+                detail_options
+            )
+            
             notes_df = (
-                cat_df[cat_df["Subcategory"] == selected_subcat]
+                main_df[main_df["SubCategoryDetail"] == selected_detail]
                 .groupby("Notes")["Abs_Amount"]
                 .sum()
                 .reset_index()
