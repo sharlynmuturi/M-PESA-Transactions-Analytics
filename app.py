@@ -27,6 +27,7 @@ def classify_with_regex(text):
     patterns = [
         # Transaction costs (first to avoid misclassification)
         (r"customer transfer of funds charge", "Transaction Costs (Send Money)"),
+        (r"pay merchant charge", "Transaction Costs (Pochi la Biashara)"),
         (r"pay bill charge", "Transaction Costs (Paybill)"),
         (r"withdrawal charge", "Transaction Costs (Withdraw)"),
 
@@ -34,14 +35,16 @@ def classify_with_regex(text):
         (r"deposit of funds at agent till", "M-PESA Deposits"),
         (r"m-shwari deposit", "M-Shwari Deposits"),
         (r"customer withdrawal at agent till", "MPESA Withdrawals"),
+        (r"m-shwari withdraw", "M-Shwari Withdrawals"),
 
         # Incoming
         (r"funds received from", "Received (Send Money)"),
         (r"business payment from", "Received (Bank)"),
+        (r"offnet b2c transfer", "Received (Send Money)"),
 
         # Outgoing
-        (r"offnet c2b transfer", "Sent (Send Money)"),
-        (r"customer transfer to", "Sent (Send Money)"),
+        (r"offnet c2b transfer", "Sent"),
+        (r"customer transfer to", "Sent"),
 
         # Shopping
         (r"merchant payment", "Shopping (Till)"),
@@ -51,7 +54,7 @@ def classify_with_regex(text):
         (r"pay bill online", "Bills (Online)"),
         (r"pay bill to", "Bills (Paybill)"),
         (r"kplc prepaid", "Bills (Electricity)"),
-        (r"bundle purchase|customer bundle purchase", "Bills (Data Bundles)"),
+        (r"bundle purchase|customer bundle purchase|safaricom data bundles", "Bills (Data Bundles)"),
         (r"airtime purchase", "Bills (Airtime Purchase)"),
 
         # Reversals
@@ -74,7 +77,7 @@ def classify_transactions_batch(text_list):
     """
     # Build prompt for all transactions at once
     prompt = "You are a financial transaction classifier. Classify each transaction into one of the following categories:\n\n"
-    prompt += "M-PESA Deposits, M-Shwari Deposits, MPESA Withdrawals, Received (Send Money), Received (Bank), Sent (Send Money), Shopping (Till), Shopping (Pochi la Biashara),Bills (Online), Bills (Paybill), Bills (Electricity), Bills (Data Bundles), Bills (Airtime Purchase), Transaction Costs (Send Money), Transaction Costs (Paybill), Transaction Costs (Withdraw), Reversals, Unclassified.\n\n"
+    prompt += "M-PESA Deposits, M-Shwari Deposits, MPESA Withdrawals, M-Shwari Withdrawals, Received (Send Money), Received (Bank), Sent (Send Money), Shopping (Till), Shopping (Pochi la Biashara),Bills (Online), Bills (Paybill), Bills (Electricity), Bills (Data Bundles), Bills (Airtime Purchase), Transaction Costs (Send Money), Transaction Costs (Paybill), Transaction Costs (Withdraw), Reversals, Unclassified.\n\n"
     prompt += "Return the category for each transaction on a separate line using <category></category> tags. Do NOT include explanations.\n\n"
     prompt += "Transactions:\n"
     for i, text in enumerate(text_list, 1):
