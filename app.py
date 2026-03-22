@@ -415,34 +415,17 @@ if uploaded_file:
             
             st.altair_chart(chart_main, use_container_width=True)
 
+            # Select MAIN category 
+            main_options = cat_df["MainCategory"].unique().tolist()
+            selected_main = st.selectbox("Select Subcategory:", main_options)
             
-            # Select MAIN category
-            # =========================
-            # Select MAIN category (FIXED)
-            # =========================
+            main_df = cat_df[cat_df["MainCategory"] == selected_main]
             
-            # Identify which MainCategories actually have subdetails
-            has_subdetails = cat_df["SubCategoryDetail"].notna() & (cat_df["SubCategoryDetail"] != "")
+            # Keep only rows where SubCategoryDetail exists
+            detail_df = main_df[main_df["SubCategoryDetail"].notna() & (main_df["SubCategoryDetail"] != "")]
             
-            main_categories_with_subdetails = cat_df.loc[
-                has_subdetails, "MainCategory"
-            ].unique().tolist()
-            
-            # If there are categories WITH subdetails → show dropdown
-            if main_categories_with_subdetails:
-                selected_main = st.selectbox(
-                    "Select Subcategory:",
-                    main_categories_with_subdetails
-                )
-            
-                main_df = cat_df[cat_df["MainCategory"] == selected_main]
-            
-                # Subcategory detail breakdown
-                detail_df = main_df[
-                    main_df["SubCategoryDetail"].notna() &
-                    (main_df["SubCategoryDetail"] != "")
-                ]
-            
+            # Only show subcategory breakdown chart if there are subdetails
+            if not detail_df.empty:
                 detail_summary = (
                     detail_df.groupby("SubCategoryDetail")["Abs_Amount"]
                     .sum()
@@ -456,24 +439,20 @@ if uploaded_file:
                     y=alt.Y("SubCategoryDetail:N", sort="-x", title="Subcategory Detail"),
                     x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
                     color=alt.Color("SubCategoryDetail:N", legend=None),
-                    tooltip=[
-                        alt.Tooltip("SubCategoryDetail:N"),
-                        alt.Tooltip("Abs_Amount:Q", format=",.2f")
-                    ]
+                    tooltip=[alt.Tooltip("SubCategoryDetail:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
                 ).properties(width=500, height=400)
             
                 st.altair_chart(chart_detail, use_container_width=True)
             
-                # Select subdetail
+                # Dropdown for selecting subdetail only if there are subdetails
                 detail_options = detail_df["SubCategoryDetail"].unique().tolist()
-            
                 selected_detail = st.selectbox(
-                    "See details of the top transactions in the subcategory:",
+                    "See details of the top transactions in the subcategory:", 
                     detail_options
                 )
-            
+                
                 notes_df = (
-                    detail_df[detail_df["SubCategoryDetail"] == selected_detail]
+                    main_df[main_df["SubCategoryDetail"] == selected_detail]
                     .groupby("Notes")["Abs_Amount"]
                     .sum()
                     .reset_index()
@@ -482,16 +461,17 @@ if uploaded_file:
                 )
             
             else:
-                # 🚀 NO subdetails at all → go straight to transactions
+                # No subdetails exist → go straight to top transactions
+                selected_detail = None
                 notes_df = (
-                    cat_df.groupby("Notes")["Abs_Amount"]
+                    main_df.groupby("Notes")["Abs_Amount"]
                     .sum()
                     .reset_index()
                     .sort_values("Abs_Amount", ascending=False)
                     .head(15)
                 )
             
-            # Plot top transactions as before
+            # Plot top transaction details
             if not notes_df.empty:
                 chart_notes = alt.Chart(notes_df).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
                     y=alt.Y("Notes:N", sort="-x", title="Transaction Details"),
