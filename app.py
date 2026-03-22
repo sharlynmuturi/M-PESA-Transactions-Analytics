@@ -307,36 +307,6 @@ if uploaded_file:
 
     # Left
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     with col1:
         
         filtered_df = df_viz.copy()
@@ -439,18 +409,6 @@ if uploaded_file:
             st.altair_chart(chart_main, use_container_width=True)
 
             # Select MAIN category (e.g. Shopping)
-
-
-
-
-
-
-
-
-
-
-
-
             main_options = cat_df["MainCategory"].unique().tolist()
             selected_main = st.selectbox("Select Subcategory:", main_options)
             
@@ -478,11 +436,6 @@ if uploaded_file:
 
 
             # Details breakdown
-
-
-
-
-
             detail_options = main_df["SubCategoryDetail"].unique().tolist()
             selected_detail = st.selectbox(
                 "Select Subcategory Detail to see transaction details:", 
