@@ -36,8 +36,8 @@ This projects uses a **Streamlit web app** to handle the entire pipeline from PD
 1.  **Clone the repository**
 
 ```bash
- git clone https://github.com/sharlynmuturi/M-PESA-Transactions-Narrator.git
-cd M-PESA-Transactions-Narrator
+ git clone https://github.com/sharlynmuturi/M-PESA-Transactions-Analytics.git
+cd M-PESA-Transactions-Analytics
 ```
 
 2.  **Create a virtual environment**
