@@ -417,17 +417,32 @@ if uploaded_file:
 
             
             # Select MAIN category
-            # Only include main categories that have real subdetails
-            main_with_details = main_df["SubCategoryDetail"].notna() & (main_df["SubCategoryDetail"] != "")
-            main_categories_with_subdetails = main_df.loc[main_with_details, "MainCategory"].unique().tolist()
+            # =========================
+            # Select MAIN category (FIXED)
+            # =========================
             
-            # If there are no main categories with subdetails, skip the subcategory chart entirely
+            # Identify which MainCategories actually have subdetails
+            has_subdetails = cat_df["SubCategoryDetail"].notna() & (cat_df["SubCategoryDetail"] != "")
+            
+            main_categories_with_subdetails = cat_df.loc[
+                has_subdetails, "MainCategory"
+            ].unique().tolist()
+            
+            # If there are categories WITH subdetails → show dropdown
             if main_categories_with_subdetails:
-                selected_main = st.selectbox("Select Subcategory:", main_categories_with_subdetails)
-                main_df_selected = main_df[main_df["MainCategory"] == selected_main]
+                selected_main = st.selectbox(
+                    "Select Subcategory:",
+                    main_categories_with_subdetails
+                )
             
-                # Subcategory Detail chart
-                detail_df = main_df_selected[main_df_selected["SubCategoryDetail"].notna() & (main_df_selected["SubCategoryDetail"] != "")]
+                main_df = cat_df[cat_df["MainCategory"] == selected_main]
+            
+                # Subcategory detail breakdown
+                detail_df = main_df[
+                    main_df["SubCategoryDetail"].notna() &
+                    (main_df["SubCategoryDetail"] != "")
+                ]
+            
                 detail_summary = (
                     detail_df.groupby("SubCategoryDetail")["Abs_Amount"]
                     .sum()
@@ -441,15 +456,19 @@ if uploaded_file:
                     y=alt.Y("SubCategoryDetail:N", sort="-x", title="Subcategory Detail"),
                     x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
                     color=alt.Color("SubCategoryDetail:N", legend=None),
-                    tooltip=[alt.Tooltip("SubCategoryDetail:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+                    tooltip=[
+                        alt.Tooltip("SubCategoryDetail:N"),
+                        alt.Tooltip("Abs_Amount:Q", format=",.2f")
+                    ]
                 ).properties(width=500, height=400)
             
                 st.altair_chart(chart_detail, use_container_width=True)
             
-                # Subdetail dropdown and top transactions
+                # Select subdetail
                 detail_options = detail_df["SubCategoryDetail"].unique().tolist()
+            
                 selected_detail = st.selectbox(
-                    "See details of the top transactions in the subcategory:", 
+                    "See details of the top transactions in the subcategory:",
                     detail_options
                 )
             
@@ -463,10 +482,9 @@ if uploaded_file:
                 )
             
             else:
-                # No subdetails → go straight to top transactions
-                selected_detail = None
+                # 🚀 NO subdetails at all → go straight to transactions
                 notes_df = (
-                    main_df.groupby("Notes")["Abs_Amount"]
+                    cat_df.groupby("Notes")["Abs_Amount"]
                     .sum()
                     .reset_index()
                     .sort_values("Abs_Amount", ascending=False)
