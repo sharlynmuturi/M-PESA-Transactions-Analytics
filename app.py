@@ -423,7 +423,7 @@ if uploaded_file:
             # Details breakdown
             detail_options = main_df["SubCategoryDetail"].unique().tolist()
             selected_detail = st.selectbox(
-                "See top transaction details in the subcategory:", 
+                "See details of the top transactions in the subcategory:", 
                 detail_options
             )
             
@@ -433,7 +433,7 @@ if uploaded_file:
                 .sum()
                 .reset_index()
                 .sort_values("Abs_Amount", ascending=False)
-                .head(10)
+                .head(15)
             )
 
             if not notes_df.empty:
