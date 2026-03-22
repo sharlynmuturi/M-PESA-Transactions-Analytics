@@ -350,9 +350,34 @@ if uploaded_file:
             color="MainCategory:N",
             tooltip=["MainCategory:N", "Abs_Amount:Q"]
         )
-        
+
+        # Income vs Expense Trend
         st.markdown("### Expense Distribution")
         st.altair_chart(chart_pie, use_container_width=True)
+
+        trend_df = filtered_df.copy()
+        
+        trend_summary = trend_df.groupby("Completion Time").agg({
+            "Paid In": "sum",
+            "Withdrawn": "sum"
+        }).reset_index()
+        
+        trend_summary = trend_summary.melt(
+            id_vars="Completion Time",
+            value_vars=["Paid In", "Withdrawn"],
+            var_name="Type",
+            value_name="Amount"
+        )
+        
+        chart_trend = alt.Chart(trend_summary).mark_line().encode(
+            x="Completion Time:T",
+            y="Amount:Q",
+            color="Type:N",
+            tooltip=["Completion Time:T", "Type:N", "Amount:Q"]
+        )
+        
+        st.markdown("### Income vs Expense Trend")
+        st.altair_chart(chart_trend, use_container_width=True)
     
     # Right
     with col2:
