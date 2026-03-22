@@ -349,31 +349,6 @@ if uploaded_file:
             st.altair_chart(chart_total, use_container_width=True)
         else:
             st.info("No transactions for the selected time filter.")
-
-        # income vs expense Trend (dual line)
-        trend_df = filtered_df.copy()
-        
-        trend_summary = trend_df.groupby("Completion Time").agg({
-            "Paid In": "sum",
-            "Withdrawn": "sum"
-        }).reset_index()
-        
-        trend_summary = trend_summary.melt(
-            id_vars="Completion Time",
-            value_vars=["Paid In", "Withdrawn"],
-            var_name="Type",
-            value_name="Amount"
-        )
-        
-        chart_trend = alt.Chart(trend_summary).mark_line().encode(
-            x="Completion Time:T",
-            y="Amount:Q",
-            color="Type:N",
-            tooltip=["Completion Time:T", "Type:N", "Amount:Q"]
-        )
-        
-        st.markdown("### Income vs Expense Trend")
-        st.altair_chart(chart_trend, use_container_width=True)
         
         # Net cash Flow trend
         cashflow_df = filtered_df.groupby("Completion Time")["Amount"].sum().reset_index()
