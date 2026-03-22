@@ -97,7 +97,7 @@ def classify_transactions_batch(text_list):
         "MPESA Withdrawals",
         "Received (Send Money)",
         "Received (Bank)",
-        "Sent (Send Money)",
+        "Sent",
         "Shopping (Till)",
         "Shopping (Pochi la Biashara)",
         "Bills (Online)",
@@ -415,32 +415,36 @@ if uploaded_file:
             
             st.altair_chart(chart_main, use_container_width=True)
 
-            # Select MAIN category (e.g. Shopping)
+            # Select MAIN category 
             main_options = cat_df["MainCategory"].unique().tolist()
             selected_main = st.selectbox("Select Subcategory:", main_options)
             
             main_df = cat_df[cat_df["MainCategory"] == selected_main]
-            
-            # Breakdown into sub-details (Till, Pochi etc.)
-            detail_summary = (
-                main_df.groupby("SubCategoryDetail")["Abs_Amount"]
-                .sum()
-                .reset_index()
-                .sort_values("Abs_Amount", ascending=True)
-            )
-            
-            chart_detail = alt.Chart(detail_summary).mark_bar(
-                cornerRadiusTopLeft=3, cornerRadiusTopRight=3
-            ).encode(
-                y=alt.Y("SubCategoryDetail:N", sort="-x", title="Subcategory Detail"),
-                x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
-                color=alt.Color("SubCategoryDetail:N", legend=None),
-                tooltip=[alt.Tooltip("SubCategoryDetail:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
-            ).properties(width=500, height=400)
-            
-            st.altair_chart(chart_detail, use_container_width=True)            
 
-
+            # Keep only rows where SubCategoryDetail is not empty or NaN
+            detail_df = main_df[main_df["SubCategoryDetail"].notna() & (main_df["SubCategoryDetail"] != "")]
+            
+            # Breakdown into sub-details 
+            if not detail_df.empty:
+                detail_summary = (
+                    detail_df.groupby("SubCategoryDetail")["Abs_Amount"]
+                    .sum()
+                    .reset_index()
+                    .sort_values("Abs_Amount", ascending=True)
+                )
+                
+                chart_detail = alt.Chart(detail_summary).mark_bar(
+                    cornerRadiusTopLeft=3, cornerRadiusTopRight=3
+                ).encode(
+                    y=alt.Y("SubCategoryDetail:N", sort="-x", title="Subcategory Detail"),
+                    x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
+                    color=alt.Color("SubCategoryDetail:N", legend=None),
+                    tooltip=[alt.Tooltip("SubCategoryDetail:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+                ).properties(width=500, height=400)
+                
+                st.altair_chart(chart_detail, use_container_width=True)
+            else:
+                st.info("No subcategory details to display for this category.")           
 
             # Details breakdown
             detail_options = main_df["SubCategoryDetail"].unique().tolist()
