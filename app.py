@@ -296,12 +296,13 @@ if uploaded_file:
     # Taking absolute values for expenses
     df_viz["Abs_Amount"] = df_viz["Amount"].abs()
 
+    # Time filter
+    time_filter = st.radio("Filter transactions by:", ["All Time", "Year", "Month", "Week", "Day of Week"])
+
     col1, col2 = st.columns([1, 2])
     
     # Left
     with col1:
-        # Time filter
-        time_filter = st.radio("Filter transactions by:", ["All Time", "Year", "Month", "Week", "Day of Week"])
         
         filtered_df = df_viz.copy()
         
@@ -351,33 +352,21 @@ if uploaded_file:
             tooltip=["MainCategory:N", "Abs_Amount:Q"]
         )
 
-        # Income vs Expense Trend
+        # Expense Distribution
         st.markdown("### Expense Distribution")
         st.altair_chart(chart_pie, use_container_width=True)
 
-        trend_df = filtered_df.copy()
+        # Net Cash Flow Trend
+        cashflow_df = filtered_df.groupby("Completion Time")["Amount"].sum().reset_index()
         
-        trend_summary = trend_df.groupby("Completion Time").agg({
-            "Paid In": "sum",
-            "Withdrawn": "sum"
-        }).reset_index()
+        chart_cashflow = alt.Chart(cashflow_df).mark_line(point=True).encode(
+            x=alt.X("Completion Time:T", title="Date"),
+            y=alt.Y("Amount:Q", title="Net Cash Flow (Ksh)"),
+            tooltip=["Completion Time:T", "Amount:Q"]
+        ).properties(height=200)
         
-        trend_summary = trend_summary.melt(
-            id_vars="Completion Time",
-            value_vars=["Paid In", "Withdrawn"],
-            var_name="Type",
-            value_name="Amount"
-        )
-        
-        chart_trend = alt.Chart(trend_summary).mark_line().encode(
-            x="Completion Time:T",
-            y="Amount:Q",
-            color="Type:N",
-            tooltip=["Completion Time:T", "Type:N", "Amount:Q"]
-        )
-        
-        st.markdown("### Income vs Expense Trend")
-        st.altair_chart(chart_trend, use_container_width=True)
+        st.markdown("### Net Cash Flow Trend")
+        st.altair_chart(chart_cashflow, use_container_width=True)
     
     # Right
     with col2:
