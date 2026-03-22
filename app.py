@@ -350,32 +350,19 @@ if uploaded_file:
         else:
             st.info("No transactions for the selected time filter.")
 
-        # Expense Distribution
-        expense_df = filtered_df[filtered_df["Category"] == "Expense"]
+        # Daily Spending Pattern
+        day_summary = expense_df.groupby("Day")["Abs_Amount"].sum().reindex([
+            "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"
+        ]).reset_index()
         
-        pie_data = expense_df.groupby("MainCategory")["Abs_Amount"].sum().reset_index()
-        
-        chart_pie = alt.Chart(pie_data).mark_arc().encode(
-            theta="Abs_Amount:Q",
-            color="MainCategory:N",
-            tooltip=["MainCategory:N", "Abs_Amount:Q"]
+        chart_day = alt.Chart(day_summary).mark_bar().encode(
+            x="Day:N",
+            y="Abs_Amount:Q",
+            tooltip=["Day", "Abs_Amount"]
         )
-
-        # Expense Distribution
-        st.markdown("### Expense Distribution")
-        st.altair_chart(chart_pie, use_container_width=True)
-
-        # Net Cash Flow Trend
-        cashflow_df = filtered_df.groupby("Completion Time")["Amount"].sum().reset_index()
         
-        chart_cashflow = alt.Chart(cashflow_df).mark_line(point=True).encode(
-            x=alt.X("Completion Time:T", title="Date"),
-            y=alt.Y("Amount:Q", title="Net Cash Flow (Ksh)"),
-            tooltip=["Completion Time:T", "Amount:Q"]
-        ).properties(height=200)
-        
-        st.markdown("### Net Cash Flow Trend")
-        st.altair_chart(chart_cashflow, use_container_width=True)
+        st.markdown("### Spending by Day of Week")
+        st.altair_chart(chart_day, use_container_width=True)
 
     # Right
 
