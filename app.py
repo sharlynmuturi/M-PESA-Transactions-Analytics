@@ -420,11 +420,11 @@ if uploaded_file:
             selected_main = st.selectbox("Select Subcategory:", main_options)
             
             main_df = cat_df[cat_df["MainCategory"] == selected_main]
-
+            
             # Keep only rows where SubCategoryDetail exists
             detail_df = main_df[main_df["SubCategoryDetail"].notna() & (main_df["SubCategoryDetail"] != "")]
             
-            # Breakdown into sub-details. Only show subcategory breakdown chart if there are subdetails
+            # Only show subcategory breakdown chart if there are subdetails
             if not detail_df.empty:
                 detail_summary = (
                     detail_df.groupby("SubCategoryDetail")["Abs_Amount"]
@@ -432,7 +432,7 @@ if uploaded_file:
                     .reset_index()
                     .sort_values("Abs_Amount", ascending=True)
                 )
-                
+            
                 chart_detail = alt.Chart(detail_summary).mark_bar(
                     cornerRadiusTopLeft=3, cornerRadiusTopRight=3
                 ).encode(
@@ -441,27 +441,37 @@ if uploaded_file:
                     color=alt.Color("SubCategoryDetail:N", legend=None),
                     tooltip=[alt.Tooltip("SubCategoryDetail:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
                 ).properties(width=500, height=400)
-                
-                st.altair_chart(chart_detail, use_container_width=True)
-            else:
-                st.info("No subcategory details to display for this category.")           
-
-            # Details breakdown
-            detail_options = main_df["SubCategoryDetail"].unique().tolist()
-            selected_detail = st.selectbox(
-                "See details of the top transactions in the subcategory:", 
-                detail_options
-            )
             
-            notes_df = (
-                main_df[main_df["SubCategoryDetail"] == selected_detail]
-                .groupby("Notes")["Abs_Amount"]
-                .sum()
-                .reset_index()
-                .sort_values("Abs_Amount", ascending=False)
-                .head(15)
-            )
-
+                st.altair_chart(chart_detail, use_container_width=True)
+            
+                # Dropdown for selecting subdetail only if there are subdetails
+                detail_options = detail_df["SubCategoryDetail"].unique().tolist()
+                selected_detail = st.selectbox(
+                    "See details of the top transactions in the subcategory:", 
+                    detail_options
+                )
+                
+                notes_df = (
+                    main_df[main_df["SubCategoryDetail"] == selected_detail]
+                    .groupby("Notes")["Abs_Amount"]
+                    .sum()
+                    .reset_index()
+                    .sort_values("Abs_Amount", ascending=False)
+                    .head(15)
+                )
+            
+            else:
+                # No subdetails exist → go straight to top transactions
+                selected_detail = None
+                notes_df = (
+                    main_df.groupby("Notes")["Abs_Amount"]
+                    .sum()
+                    .reset_index()
+                    .sort_values("Abs_Amount", ascending=False)
+                    .head(15)
+                )
+            
+            # Plot top transaction details
             if not notes_df.empty:
                 chart_notes = alt.Chart(notes_df).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
                     y=alt.Y("Notes:N", sort="-x", title="Transaction Details"),
@@ -469,9 +479,7 @@ if uploaded_file:
                     color=alt.Color("Notes:N", legend=None),
                     tooltip=[alt.Tooltip("Notes:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
                 ).properties(width=500, height=400)
-
+            
                 st.altair_chart(chart_notes, use_container_width=True)
             else:
                 st.info("No detail available for this Subcategory.")
-        else:
-            st.info("No transactions for the selected time filter.")
