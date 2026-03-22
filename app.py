@@ -242,10 +242,22 @@ if uploaded_file:
 
     # Classify transactions using batch LLM + regex fallback
     llm_needed_mask = df["Details"].apply(lambda x: classify_with_regex(x) is None)
+    llm_indices = df.index[llm_needed_mask].tolist()
+    
     llm_texts = df.loc[llm_needed_mask, "Details"].tolist()
-    llm_categories = classify_transactions_batch(llm_texts)
-    df.loc[llm_needed_mask, "Subcategory"] = llm_categories
-    df.loc[llm_needed_mask, "Method"] = "llm"
+    
+    if llm_texts:
+        llm_categories = classify_transactions_batch(llm_texts)
+    
+        # Ensure exact length match
+        if len(llm_categories) != len(llm_indices):
+            llm_categories = llm_categories[:len(llm_indices)]
+            llm_categories += ["Unclassified"] * (len(llm_indices) - len(llm_categories))
+    
+        # Assign row by row
+        for idx, cat in zip(llm_indices, llm_categories):
+            df.at[idx, "Subcategory"] = cat
+            df.at[idx, "Method"] = "llm"
     
     # Assigning regex classifications for the rest
     df.loc[~llm_needed_mask, "Subcategory"] = df.loc[~llm_needed_mask, "Details"].apply(classify_with_regex)
