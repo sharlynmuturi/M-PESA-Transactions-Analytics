@@ -372,7 +372,7 @@ if uploaded_file:
 
             # Select MAIN category (e.g. Shopping)
             main_options = cat_df["MainCategory"].unique().tolist()
-            selected_main = st.selectbox("Select Category:", main_options)
+            selected_main = st.selectbox("Select Subcategory:", main_options)
             
             main_df = cat_df[cat_df["MainCategory"] == selected_main]
             
