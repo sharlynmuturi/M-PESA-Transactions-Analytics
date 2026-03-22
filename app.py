@@ -290,161 +290,223 @@ if uploaded_file:
         mime="text/csv"
     )
     
-    # Visualizations
+   # Visualizations
+    st.header("Transaction Summary Visualizations")
 
     # Filtering out Neutral
     df_viz = df[df["Category"] != "Neutral"].copy()
-    
+
     # Taking absolute values for expenses
     df_viz["Abs_Amount"] = df_viz["Amount"].abs()
 
-    st.header("Transaction Summary Visualizations")
+
     # Time filter
     time_filter = st.radio("Filter transactions by:", ["All Time", "Year", "Month", "Week", "Day of Week"])
 
-    
-    # =========================
-    # FILTERING (KEEP AS IS)
-    # =========================
-    filtered_df = df_viz.copy()
-    
-    if time_filter == "Year":
-        year_options = sorted(filtered_df['Year'].dropna().unique())
-        selected_year = st.selectbox("Select Year:", year_options)
-        filtered_df = filtered_df[filtered_df['Year'] == selected_year]
-    
-    elif time_filter == "Month":
-        month_options = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-        selected_month = st.selectbox("Select Month:", month_options)
-        filtered_df = filtered_df[filtered_df['Month'] == selected_month]
-    
-    elif time_filter == "Week":
-        week_options = sorted(filtered_df['Week'].dropna().unique())
-        selected_week = st.selectbox("Select Week Number:", week_options)
-        filtered_df = filtered_df[filtered_df['Week'] == selected_week]
-    
-    elif time_filter == "Day of Week":
-        day_options = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
-        selected_day = st.selectbox("Select Day:", day_options)
-        filtered_df = filtered_df[filtered_df['Day'] == selected_day]
-    
-    
-    # =========================
-    # ROW 1
-    # =========================
-    col1, col2 = st.columns(2)
-    
-    # ---- LEFT: Income vs Expenses ----
+    col1, col2 = st.columns([1, 2])
+
+    # Left
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     with col1:
+        
+        filtered_df = df_viz.copy()
+        
+        if time_filter == "Year":
+            year_options = sorted(filtered_df['Year'].dropna().unique())
+            selected_year = st.selectbox("Select Year:", year_options)
+            filtered_df = filtered_df[filtered_df['Year'] == selected_year]
+        
+        elif time_filter == "Month":
+            month_options = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+            selected_month = st.selectbox("Select Month:", month_options)
+            filtered_df = filtered_df[filtered_df['Month'] == selected_month]
+        
+        elif time_filter == "Week":
+            week_options = sorted(filtered_df['Week'].dropna().unique())
+            selected_week = st.selectbox("Select Week Number:", week_options)
+            filtered_df = filtered_df[filtered_df['Week'] == selected_week]
+        
+        elif time_filter == "Day of Week":
+            day_options = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+            selected_day = st.selectbox("Select Day:", day_options)
+            filtered_df = filtered_df[filtered_df['Day'] == selected_day]
+
+        # Total amounts by category
         st.markdown("### Income vs Expenses")
-    
+
         category_summary = filtered_df.groupby("Category")["Abs_Amount"].sum().reset_index()
-    
+        
         if not category_summary.empty:
-            chart_total = alt.Chart(category_summary).mark_bar(
-                cornerRadiusTopLeft=3, cornerRadiusTopRight=3
-            ).encode(
-                x=alt.X("Category:N", title="Category"),
+            chart_total = alt.Chart(category_summary).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
+                x=alt.X("Category:N", sort=None, title="Category"),
+
+
                 y=alt.Y("Abs_Amount:Q", title="Amount (Ksh)"),
                 color=alt.Color("Category:N", legend=None),
-                tooltip=["Category", alt.Tooltip("Abs_Amount:Q", format=",.2f")]
-            ).properties(height=350)
-    
+                tooltip=[alt.Tooltip("Category:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+            ).properties(width=200, height=400)
+
             st.altair_chart(chart_total, use_container_width=True)
         else:
-            st.info("No data available.")
-    
-    
-    # ---- RIGHT: Main Category Breakdown ----
+            st.info("No transactions for the selected time filter.")
+
+        # Expense Distribution
+        expense_df = filtered_df[filtered_df["Category"] == "Expense"]
+        
+        pie_data = expense_df.groupby("MainCategory")["Abs_Amount"].sum().reset_index()
+        
+        chart_pie = alt.Chart(pie_data).mark_arc().encode(
+            theta="Abs_Amount:Q",
+            color="MainCategory:N",
+            tooltip=["MainCategory:N", "Abs_Amount:Q"]
+        )
+
+        # Expense Distribution
+        st.markdown("### Expense Distribution")
+        st.altair_chart(chart_pie, use_container_width=True)
+
+        # Net Cash Flow Trend
+        cashflow_df = filtered_df.groupby("Completion Time")["Amount"].sum().reset_index()
+        
+        chart_cashflow = alt.Chart(cashflow_df).mark_line(point=True).encode(
+            x=alt.X("Completion Time:T", title="Date"),
+            y=alt.Y("Amount:Q", title="Net Cash Flow (Ksh)"),
+            tooltip=["Completion Time:T", "Amount:Q"]
+        ).properties(height=200)
+        
+        st.markdown("### Net Cash Flow Trend")
+        st.altair_chart(chart_cashflow, use_container_width=True)
+
+    # Right
+
     with col2:
-        st.markdown("### Subcategory Breakdown (Select Category to visualize:)")
-    
+        st.markdown("### Subcategory Breakdown")
+        
         if not filtered_df.empty:
+            # select a category to visualize
             category_options = filtered_df["Category"].unique().tolist()
             selected_cat = st.selectbox("Select Category to visualize:", category_options)
-    
-            cat_df = filtered_df[filtered_df["Category"] == selected_cat]
-    
+            
+            cat_df = filtered_df[filtered_df["Category"] == selected_cat].copy()
+            
+            # Aggregate by main category (before brackets)
             main_summary = (
                 cat_df.groupby("MainCategory")["Abs_Amount"]
                 .sum()
                 .reset_index()
-                .sort_values("Abs_Amount", ascending=False)
+                .sort_values("Abs_Amount", ascending=True)
             )
-    
-            chart_main = alt.Chart(main_summary).mark_bar().encode(
-                x=alt.X("MainCategory:N", title="Main Category"),
-                y=alt.Y("Abs_Amount:Q", title="Amount (Ksh)"),
+            
+            chart_main = alt.Chart(main_summary).mark_bar(
+                cornerRadiusTopLeft=3, cornerRadiusTopRight=3
+            ).encode(
+                y=alt.Y("MainCategory:N", sort="-x", title="Main Category"),
+                x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
                 color=alt.Color("MainCategory:N", legend=None),
-                tooltip=["MainCategory", alt.Tooltip("Abs_Amount:Q", format=",.2f")]
-            ).properties(height=350)
-    
+                tooltip=[alt.Tooltip("MainCategory:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+            ).properties(width=500, height=400)
+            
             st.altair_chart(chart_main, use_container_width=True)
-        else:
-            st.info("No data available.")
-    
-    
-    # =========================
-    # ROW 2
-    # =========================
-    col3, col4 = st.columns(2)
-    
-    # ---- LEFT: Subcategory Breakdown ----
-    with col3:
-        st.markdown("### Subcategory Breakdown (Select Subcategory:)")
-    
-        if not filtered_df.empty:
+
+            # Select MAIN category (e.g. Shopping)
+
+
+
+
+
+
+
+
+
+
+
+
             main_options = cat_df["MainCategory"].unique().tolist()
             selected_main = st.selectbox("Select Subcategory:", main_options)
-    
+            
             main_df = cat_df[cat_df["MainCategory"] == selected_main]
-    
+            
+            # Breakdown into sub-details (Till, Pochi etc.)
             detail_summary = (
                 main_df.groupby("SubCategoryDetail")["Abs_Amount"]
                 .sum()
                 .reset_index()
-                .sort_values("Abs_Amount", ascending=False)
+                .sort_values("Abs_Amount", ascending=True)
             )
-    
-            chart_detail = alt.Chart(detail_summary).mark_bar().encode(
-                x=alt.X("SubCategoryDetail:N", title="Subcategory Detail"),
-                y=alt.Y("Abs_Amount:Q", title="Amount (Ksh)"),
+            
+            chart_detail = alt.Chart(detail_summary).mark_bar(
+                cornerRadiusTopLeft=3, cornerRadiusTopRight=3
+            ).encode(
+                y=alt.Y("SubCategoryDetail:N", sort="-x", title="Subcategory Detail"),
+                x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
                 color=alt.Color("SubCategoryDetail:N", legend=None),
-                tooltip=["SubCategoryDetail", alt.Tooltip("Abs_Amount:Q", format=",.2f")]
-            ).properties(height=350)
-    
-            st.altair_chart(chart_detail, use_container_width=True)
-        else:
-            st.info("No data available.")
-    
-    
-    # ---- RIGHT: Transaction Details ----
-    with col4:
-        st.markdown("### Subcategory Breakdown (Select Subcategory Detail:)")
-    
-        if not filtered_df.empty:
+                tooltip=[alt.Tooltip("SubCategoryDetail:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+            ).properties(width=500, height=400)
+            
+            st.altair_chart(chart_detail, use_container_width=True)            
+
+
+
+            # Details breakdown
+
+
+
+
+
             detail_options = main_df["SubCategoryDetail"].unique().tolist()
             selected_detail = st.selectbox(
-                "Select Subcategory Detail to see transaction details:",
+                "Select Subcategory Detail to see transaction details:", 
                 detail_options
             )
-    
+            
             notes_df = (
                 main_df[main_df["SubCategoryDetail"] == selected_detail]
                 .groupby("Notes")["Abs_Amount"]
                 .sum()
                 .reset_index()
-                .sort_values("Abs_Amount", ascending=False)
+                .sort_values("Abs_Amount", ascending=True)
             )
-    
+
             if not notes_df.empty:
-                chart_notes = alt.Chart(notes_df).mark_bar().encode(
-                    x=alt.X("Notes:N", title="Transaction Details"),
-                    y=alt.Y("Abs_Amount:Q", title="Amount (Ksh)"),
+                chart_notes = alt.Chart(notes_df).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
+                    y=alt.Y("Notes:N", sort="-x", title="Transaction Details"),
+                    x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
                     color=alt.Color("Notes:N", legend=None),
-                    tooltip=["Notes", alt.Tooltip("Abs_Amount:Q", format=",.2f")]
-                ).properties(height=350)
-    
+                    tooltip=[alt.Tooltip("Notes:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+                ).properties(width=500, height=400)
+
                 st.altair_chart(chart_notes, use_container_width=True)
             else:
-                st.info("No detail available.")
+                st.info("No detail available for this Subcategory.")
+        else:
+            st.info("No transactions for the selected time filter.")
