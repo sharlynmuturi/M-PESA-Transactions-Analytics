@@ -91,26 +91,7 @@ def classify_transactions_batch(text_list):
 
     content = chat_completion.choices[0].message.content
 
-    valid_categories = {
-        "M-PESA Deposits",
-        "M-Shwari Deposits",
-        "MPESA Withdrawals",
-        "Received (Send Money)",
-        "Received (Bank)",
-        "Sent",
-        "Shopping (Till)",
-        "Shopping (Pochi la Biashara)",
-        "Bills (Online)",
-        "Bills (Paybill)",
-        "Bills (Electricity)",
-        "Bills (Data Bundles)",
-        "Bills (Airtime Purchase)",
-        "Transaction Costs (Send Money)",
-        "Transaction Costs (Paybill)",
-        "Transaction Costs (Withdraw)",
-        "Reversals",
-        "Unclassified"
-    }
+    valid_categories = {"M-PESA Deposits", "M-Shwari Deposits", "MPESA Withdrawals", "Received (Send Money)", "Received (Bank)", "Sent", "Shopping (Till)", "Shopping (Pochi la Biashara)", "Bills (Online)", "Bills (Paybill)", "Bills (Electricity)", "Bills (Data Bundles)", "Bills (Airtime Purchase)", "Transaction Costs (Send Money)", "Transaction Costs (Paybill)", "Transaction Costs (Withdraw)", "Reversals", "Unclassified"}
 
     # Extraction
     categories = []
