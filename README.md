@@ -40,10 +40,10 @@ This projects uses a **Streamlit web app** to handle the entire pipeline from PD
 cd M-PESA-Transactions-Analytics
 ```
 
-2.  **Create a virtual environment**
+2.  **Create a python 3.11 virtual environment**
 
 ```bash
-python -m venv venv 
+py -3.11 -m venv venv
 venv\Scripts\activate     # Windows 
 source venv/bin/activate  # Linux/macOS  
 ```
