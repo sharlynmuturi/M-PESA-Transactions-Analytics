@@ -421,10 +421,10 @@ if uploaded_file:
             
             main_df = cat_df[cat_df["MainCategory"] == selected_main]
 
-            # Keep only rows where SubCategoryDetail is not empty or NaN
+            # Keep only rows where SubCategoryDetail exists
             detail_df = main_df[main_df["SubCategoryDetail"].notna() & (main_df["SubCategoryDetail"] != "")]
             
-            # Breakdown into sub-details 
+            # Breakdown into sub-details. Only show subcategory breakdown chart if there are subdetails
             if not detail_df.empty:
                 detail_summary = (
                     detail_df.groupby("SubCategoryDetail")["Abs_Amount"]
