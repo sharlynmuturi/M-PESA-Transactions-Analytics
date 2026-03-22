@@ -339,6 +339,20 @@ if uploaded_file:
             st.altair_chart(chart_total, use_container_width=True)
         else:
             st.info("No transactions for the selected time filter.")
+
+        # Expense Distribution
+        expense_df = filtered_df[filtered_df["Category"] == "Expense"]
+        
+        pie_data = expense_df.groupby("MainCategory")["Abs_Amount"].sum().reset_index()
+        
+        chart_pie = alt.Chart(pie_data).mark_arc().encode(
+            theta="Abs_Amount:Q",
+            color="MainCategory:N",
+            tooltip=["MainCategory:N", "Abs_Amount:Q"]
+        )
+        
+        st.markdown("### Expense Distribution")
+        st.altair_chart(chart_pie, use_container_width=True)
     
     # Right
     with col2:
