@@ -19,31 +19,49 @@ groq = Groq(api_key=groq_api_key)
 
 # Regex classifier
 def classify_with_regex(text):
+    if pd.isna(text):
+        return None
+        
     text = text.lower()
-    patterns = {
-        r"funds received from": "Income from Mobile Money",
-        r"business payment from": "Income from Bank",
-        r"deposit of funds at agent till": "Deposited to M-PESA",
-        r"customer transfer to": "Mobile Money Transfer",
-        r"customer transfer of funds charge": "Transaction Cost",
-        r"merchant payment": "Shopping",
-        r"airtel money": "Mobile Money Transfer",
-        r"offnet c2b transfer": "Mobile Money Transfer",
-        r"kplc|water": "Utility Bill",
-        r"airtime purchase": "Airtime Purchase",
-        r"bundle purchase": "Internet Bundles Buy",
-        r"pay bill charge": "Transaction Cost",
-        r"pay bill": "Paybill Payment",
-        r"withdrawal charge": "Transaction Cost",
-        r"customer withdrawal at agent till": "Withdrawn from MPESA",
-        r"customer payment to small business": "Shopping",
-        r"pay bill online": "Online Bill",
-        r"supermarket|naivas|carrefour|shop|store|mart": "Shopping",
-        r"uber|bolt|taxi": "Transport",
-    }
-    for pattern, label in patterns.items():
+
+    patterns = [
+        # Transaction costs (first to avoid misclassification)
+        (r"customer transfer of funds charge", "Transaction Costs (Send Money)"),
+        (r"pay bill charge", "Transaction Costs (Paybill)"),
+        (r"withdrawal charge", "Transaction Costs (Withdraw)"),
+
+        # Deposits / withdrawals
+        (r"deposit of funds at agent till", "M-PESA Deposits"),
+        (r"m-shwari deposit", "M-Shwari Deposits"),
+        (r"customer withdrawal at agent till", "MPESA Withdrawals"),
+
+        # Incoming
+        (r"funds received from", "Received (Send Money)"),
+        (r"business payment from", "Received (Bank)"),
+
+        # Outgoing
+        (r"offnet c2b transfer", "Sent (Send Money)"),
+        (r"customer transfer to", "Sent (Send Money)"),
+
+        # Shopping
+        (r"merchant payment", "Shopping (Till)"),
+        (r"customer payment to small business", "Shopping (Pochi la Biashara)"),
+
+        # Bills
+        (r"pay bill online", "Bills (Online)"),
+        (r"pay bill to", "Bills (Paybill)"),
+        (r"kplc prepaid", "Bills (Electricity)"),
+        (r"bundle purchase|customer bundle purchase", "Bills (Data Bundles)"),
+        (r"airtime purchase", "Bills (Airtime Purchase)"),
+
+        # Reversals
+        (r"reversal", "Reversals"),
+    ]
+
+    for pattern, label in patterns:
         if re.search(pattern, text):
             return label
+
     return None
 
 
@@ -56,7 +74,7 @@ def classify_transactions_batch(text_list):
     """
     # Build prompt for all transactions at once
     prompt = "You are a financial transaction classifier. Classify each transaction into one of the following categories:\n\n"
-    prompt += "Income from Mobile Money, Income from Bank, Deposited to M-PESA, Mobile Money Transfer, Transaction Cost, Shopping, Airtime Purchase, Internet Bundles Buy, Paybill Payment, Withdrawn from MPESA, Online Bill, Utility Bill, Transport\n\n"
+    prompt += "M-PESA Deposits, M-Shwari Deposits, MPESA Withdrawals, Received (Send Money), Received (Bank), Sent (Send Money), Shopping (Till), Shopping (Pochi la Biashara),Bills (Online), Bills (Paybill), Bills (Electricity), Bills (Data Bundles), Bills (Airtime Purchase), Transaction Costs (Send Money), Transaction Costs (Paybill), Transaction Costs (Withdraw), Reversals, Unclassified.\n\n"
     prompt += "Return the category for each transaction on a separate line using <category></category> tags. Do NOT include explanations.\n\n"
     prompt += "Transactions:\n"
     for i, text in enumerate(text_list, 1):
@@ -69,12 +87,37 @@ def classify_transactions_batch(text_list):
     )
 
     content = chat_completion.choices[0].message.content
+
+    valid_categories = {
+        "M-PESA Deposits",
+        "M-Shwari Deposits",
+        "MPESA Withdrawals",
+        "Received (Send Money)",
+        "Received (Bank)",
+        "Sent (Send Money)",
+        "Shopping (Till)",
+        "Shopping (Pochi la Biashara)",
+        "Bills (Online)",
+        "Bills (Paybill)",
+        "Bills (Electricity)",
+        "Bills (Data Bundles)",
+        "Bills (Airtime Purchase)",
+        "Transaction Costs (Send Money)",
+        "Transaction Costs (Paybill)",
+        "Transaction Costs (Withdraw)",
+        "Reversals",
+        "Unclassified"
+    }
+
+    # Extraction
     categories = []
 
-    # Extract all <category> tags line by line
     for match in re.findall(r'<category>(.*?)<\/category>', content, flags=re.DOTALL):
-        categories.append(match.strip())
-
+        cat = match.strip()
+        if cat not in valid_categories:
+            cat = "Unclassified"
+        categories.append(cat)
+        
     # If the number of categories returned < number of transactions, pad with "Unclassified"
     while len(categories) < len(text_list):
         categories.append("Unclassified")
@@ -189,6 +232,7 @@ if uploaded_file:
     df['Month'] = df['Completion Time'].dt.strftime('%b')
     df['Date'] = df['Completion Time'].dt.day
     df['Day'] = df['Completion Time'].dt.day_name()
+    df['Week'] = df['Completion Time'].dt.isocalendar().week
 
     # Clean numeric columns
     for col in ["Paid In", "Withdrawn", "Balance"]:
