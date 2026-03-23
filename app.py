@@ -178,6 +178,7 @@ if uploaded_file:
             st.stop()
             
     with st.spinner("Running analysis..."):
+         
         # Extract tables
         all_rows = []
         with pdfplumber.open(unlocked_bytes) as pdf:
@@ -185,13 +186,13 @@ if uploaded_file:
                 table = page.extract_table()
                 if table:
                     all_rows.extend(table)
-    
+        
         if not all_rows:
             st.warning("No tables found in PDF.")
             st.stop()
-    
+        
         df = pd.DataFrame(all_rows)
-    
+        
         # Set column names
         df.columns = [
             "Receipt No",
@@ -202,15 +203,15 @@ if uploaded_file:
             "Withdrawn",
             "Balance"
         ]
-    
+        
         # Remove repeated headers
         header_values = df.columns.tolist()
         df = df[~df.apply(lambda row: all(any(h.lower() in str(cell).lower() for h in header_values) for cell in row), axis=1)].reset_index(drop=True)
-    
+        
         # Clean details & extract notes
         df["Details"] = df["Details"].apply(clean_details)
         df["Notes"] = df["Details"].apply(extract_notes)
-    
+        
         # Processing the time column
         df['Completion Time'] = df['Completion Time'].astype(str).str.strip()
         df['Completion Time'] = pd.to_datetime(df['Completion Time'], errors='coerce', infer_datetime_format=True)
@@ -220,13 +221,13 @@ if uploaded_file:
         df['Date'] = df['Completion Time'].dt.day
         df['Day'] = df['Completion Time'].dt.day_name()
         df['Week'] = df['Completion Time'].dt.isocalendar().week
-    
+        
         # Clean numeric columns
         for col in ["Paid In", "Withdrawn", "Balance"]:
             df[col] = df[col].apply(extract_amount)
         df["Amount"] = df["Paid In"] - df["Withdrawn"]
         df["Category"] = df["Amount"].apply(label_transaction)
-    
+        
         # Classify transactions using batch LLM + regex fallback
         llm_needed_mask = df["Details"].apply(lambda x: classify_with_regex(x) is None)
         llm_indices = df.index[llm_needed_mask].tolist()
@@ -249,7 +250,7 @@ if uploaded_file:
         # Assigning regex classifications for the rest
         df.loc[~llm_needed_mask, "Subcategory"] = df.loc[~llm_needed_mask, "Details"].apply(classify_with_regex)
         df.loc[~llm_needed_mask, "Method"] = "regex"
-    
+        
         # Split subcategory into parent + child
         def split_subcategory(subcat):
             if pd.isna(subcat):
@@ -264,7 +265,7 @@ if uploaded_file:
         df[["MainCategory", "SubCategoryDetail"]] = df["Subcategory"].apply(
             lambda x: pd.Series(split_subcategory(x))
         )
-    
+        
         # Download CSV
         csv_bytes = df.to_csv(index=False).encode("utf-8")
         st.download_button(
@@ -276,20 +277,20 @@ if uploaded_file:
         
         # Visualizations
         st.header("Transaction Visualizations")
-    
+        
         # Filtering out Neutral
         df_viz = df[df["Category"] != "Neutral"].copy()
-    
+        
         # Taking absolute values for expenses
         df_viz["Abs_Amount"] = df_viz["Amount"].abs()
-    
-    
-    
-    
+        
+        
+        
+        
         col1, col2 = st.columns([1, 2])
-    
+        
         # Left
-    
+        
         with col1:
             # Tooltip
             with st.expander("How transactions are classified"):
@@ -347,7 +348,7 @@ if uploaded_file:
             
             if selected_day_name != "All":
                 filtered_df = filtered_df[filtered_df['Day'] == selected_day_name]
-    
+        
             # Net cash flow trend
             cashflow_df = filtered_df.groupby("Completion Time")["Amount"].sum().reset_index()
             
@@ -359,31 +360,31 @@ if uploaded_file:
             
             st.markdown("### Net Cash Flow Trend")
             st.altair_chart(chart_cashflow, use_container_width=True)
-    
+        
                 
             # Total amounts by category
             st.markdown("### Income vs Expenses")
-    
+        
             category_summary = filtered_df.groupby("Category")["Abs_Amount"].sum().reset_index()
             
             if not category_summary.empty:
                 chart_total = alt.Chart(category_summary).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
                     x=alt.X("Category:N", sort=None, title="Category"),
-    
-    
+        
+        
                     y=alt.Y("Abs_Amount:Q", title="Amount (Ksh)"),
                     color=alt.Color("Category:N", legend=None),
                     tooltip=[alt.Tooltip("Category:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
                 ).properties(width=200, height=400)
-    
+        
                 st.altair_chart(chart_total, use_container_width=True)
             else:
                 st.info("No transactions for the selected time filter.")
             
-    
+        
             
         # Right
-    
+        
         with col2:
             st.markdown("### Subcategory Breakdown")
             
@@ -412,7 +413,7 @@ if uploaded_file:
                 ).properties(width=500, height=400)
                 
                 st.altair_chart(chart_main, use_container_width=True)
-    
+        
                 # Select MAIN category 
                 main_options = cat_df["MainCategory"].unique().tolist()
                 selected_main = st.selectbox("Select Subcategory:", main_options)
