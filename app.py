@@ -156,325 +156,326 @@ st.title("M-PESA Transactions Analytics Platform")
 uploaded_file = st.file_uploader("Upload your M-PESA PDF statement", type=["pdf"])
 
 if uploaded_file:
-    # Require password
-    pdf_password = st.text_input("Enter PDF password (required)", type="password")
-    if not pdf_password:
-        st.warning("Kindly enter the code password sent by Safaricom.")
-        st.stop()
-
-    # Saving to BytesIO for processing
-    pdf_bytes = BytesIO(uploaded_file.read())
-    unlocked_bytes = BytesIO()
-
-    try:
-        with pikepdf.open(pdf_bytes, password=pdf_password) as pdf:
-            pdf.save(unlocked_bytes)
-        st.success("PDF unlocked successfully! Analyzing transactions...")
-        
-    except Exception as e:
-        st.error(f"Error unlocking PDF: {e}")
-        st.stop()
-
-    # Extract tables
-    all_rows = []
-    with pdfplumber.open(unlocked_bytes) as pdf:
-        for page in pdf.pages:
-            table = page.extract_table()
-            if table:
-                all_rows.extend(table)
-
-    if not all_rows:
-        st.warning("No tables found in PDF.")
-        st.stop()
-
-    df = pd.DataFrame(all_rows)
-
-    # Set column names
-    df.columns = [
-        "Receipt No",
-        "Completion Time",
-        "Details",
-        "Transaction Status",
-        "Paid In",
-        "Withdrawn",
-        "Balance"
-    ]
-
-    # Remove repeated headers
-    header_values = df.columns.tolist()
-    df = df[~df.apply(lambda row: all(any(h.lower() in str(cell).lower() for h in header_values) for cell in row), axis=1)].reset_index(drop=True)
-
-    # Clean details & extract notes
-    df["Details"] = df["Details"].apply(clean_details)
-    df["Notes"] = df["Details"].apply(extract_notes)
-
-    # Processing the time column
-    df['Completion Time'] = df['Completion Time'].astype(str).str.strip()
-    df['Completion Time'] = pd.to_datetime(df['Completion Time'], errors='coerce', infer_datetime_format=True)
+    with st.spinner("Running analysis..."):
+        # Require password
+        pdf_password = st.text_input("Enter PDF password (required)", type="password")
+        if not pdf_password:
+            st.warning("Kindly enter the code password sent by Safaricom.")
+            st.stop()
     
-    df['Year'] = df['Completion Time'].dt.year
-    df['Month'] = df['Completion Time'].dt.strftime('%b')
-    df['Date'] = df['Completion Time'].dt.day
-    df['Day'] = df['Completion Time'].dt.day_name()
-    df['Week'] = df['Completion Time'].dt.isocalendar().week
-
-    # Clean numeric columns
-    for col in ["Paid In", "Withdrawn", "Balance"]:
-        df[col] = df[col].apply(extract_amount)
-    df["Amount"] = df["Paid In"] - df["Withdrawn"]
-    df["Category"] = df["Amount"].apply(label_transaction)
-
-    # Classify transactions using batch LLM + regex fallback
-    llm_needed_mask = df["Details"].apply(lambda x: classify_with_regex(x) is None)
-    llm_indices = df.index[llm_needed_mask].tolist()
+        # Saving to BytesIO for processing
+        pdf_bytes = BytesIO(uploaded_file.read())
+        unlocked_bytes = BytesIO()
     
-    llm_texts = df.loc[llm_needed_mask, "Details"].tolist()
+        try:
+            with pikepdf.open(pdf_bytes, password=pdf_password) as pdf:
+                pdf.save(unlocked_bytes)
+            st.success("PDF unlocked successfully! Analyzing transactions...")
+            
+        except Exception as e:
+            st.error(f"Error unlocking PDF: {e}")
+            st.stop()
     
-    if llm_texts:
-        llm_categories = classify_transactions_batch(llm_texts)
+        # Extract tables
+        all_rows = []
+        with pdfplumber.open(unlocked_bytes) as pdf:
+            for page in pdf.pages:
+                table = page.extract_table()
+                if table:
+                    all_rows.extend(table)
     
-        # Ensure exact length match
-        if len(llm_categories) != len(llm_indices):
-            llm_categories = llm_categories[:len(llm_indices)]
-            llm_categories += ["Unclassified"] * (len(llm_indices) - len(llm_categories))
+        if not all_rows:
+            st.warning("No tables found in PDF.")
+            st.stop()
     
-        # Assign row by row
-        for idx, cat in zip(llm_indices, llm_categories):
-            df.at[idx, "Subcategory"] = cat
-            df.at[idx, "Method"] = "llm"
+        df = pd.DataFrame(all_rows)
     
-    # Assigning regex classifications for the rest
-    df.loc[~llm_needed_mask, "Subcategory"] = df.loc[~llm_needed_mask, "Details"].apply(classify_with_regex)
-    df.loc[~llm_needed_mask, "Method"] = "regex"
-
-    # Split subcategory into parent + child
-    def split_subcategory(subcat):
-        if pd.isna(subcat):
-            return ("Unclassified", "Unclassified")
-        
-        match = re.match(r"(.+?)\s*\((.+)\)", subcat)
-        if match:
-            return match.group(1).strip(), match.group(2).strip()
-        else:
-            return subcat.strip(), subcat.strip()
+        # Set column names
+        df.columns = [
+            "Receipt No",
+            "Completion Time",
+            "Details",
+            "Transaction Status",
+            "Paid In",
+            "Withdrawn",
+            "Balance"
+        ]
     
-    df[["MainCategory", "SubCategoryDetail"]] = df["Subcategory"].apply(
-        lambda x: pd.Series(split_subcategory(x))
-    )
-
-    # Download CSV
-    csv_bytes = df.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="Download as CSV",
-        data=csv_bytes,
-        file_name="mpesa_classified.csv",
-        mime="text/csv"
-    )
+        # Remove repeated headers
+        header_values = df.columns.tolist()
+        df = df[~df.apply(lambda row: all(any(h.lower() in str(cell).lower() for h in header_values) for cell in row), axis=1)].reset_index(drop=True)
     
-    # Visualizations
-    st.header("Transaction Visualizations")
-
-    # Filtering out Neutral
-    df_viz = df[df["Category"] != "Neutral"].copy()
-
-    # Taking absolute values for expenses
-    df_viz["Abs_Amount"] = df_viz["Amount"].abs()
-
-
-
-
-    col1, col2 = st.columns([1, 2])
-
-    # Left
-
-    with col1:
-        # Tooltip
-        with st.expander("How transactions are classified"):
-            st.write(
-                """
-                Transactions are categorized based on keyword patterns:
+        # Clean details & extract notes
+        df["Details"] = df["Details"].apply(clean_details)
+        df["Notes"] = df["Details"].apply(extract_notes)
+    
+        # Processing the time column
+        df['Completion Time'] = df['Completion Time'].astype(str).str.strip()
+        df['Completion Time'] = pd.to_datetime(df['Completion Time'], errors='coerce', infer_datetime_format=True)
         
-                **Income** - money coming into M-PESA:
-                - **Received:** transfers sent into your M-PESA account from others  
-                - **M-PESA Deposits:** cash deposited into your M-PESA via agents
-                - **M-Shwari Withdrawals:** cash deposited into your M-PESA from M-Shwari
-                - **Reversals:** any reversed transactions  
+        df['Year'] = df['Completion Time'].dt.year
+        df['Month'] = df['Completion Time'].dt.strftime('%b')
+        df['Date'] = df['Completion Time'].dt.day
+        df['Day'] = df['Completion Time'].dt.day_name()
+        df['Week'] = df['Completion Time'].dt.isocalendar().week
+    
+        # Clean numeric columns
+        for col in ["Paid In", "Withdrawn", "Balance"]:
+            df[col] = df[col].apply(extract_amount)
+        df["Amount"] = df["Paid In"] - df["Withdrawn"]
+        df["Category"] = df["Amount"].apply(label_transaction)
+    
+        # Classify transactions using batch LLM + regex fallback
+        llm_needed_mask = df["Details"].apply(lambda x: classify_with_regex(x) is None)
+        llm_indices = df.index[llm_needed_mask].tolist()
         
-                **Expenses** - money leaving M-PESA:
-                - **Sent:** cash transfered to others via Send Money  
-                - **Shopping:** payments to till numbers or Pochi la Biashara  
-                - **Bills:** Paybill payments, electricity (KPLC), online bills, airtime, data bundles  
-                - **M-PESA Withdrawals:** cash withdrawn from your M-PESA via agents
-                - **M-Shwari Deposits:** cash moved from your M-PESA to M-Shwari 
-                - **Transaction Costs:** charges for withdrawals, transfers, Paybill payments  
+        llm_texts = df.loc[llm_needed_mask, "Details"].tolist()
         
-                Transactions with unclear descriptions are classified using AI.
-                """
-            )
+        if llm_texts:
+            llm_categories = classify_transactions_batch(llm_texts)
+        
+            # Ensure exact length match
+            if len(llm_categories) != len(llm_indices):
+                llm_categories = llm_categories[:len(llm_indices)]
+                llm_categories += ["Unclassified"] * (len(llm_indices) - len(llm_categories))
+        
+            # Assign row by row
+            for idx, cat in zip(llm_indices, llm_categories):
+                df.at[idx, "Subcategory"] = cat
+                df.at[idx, "Method"] = "llm"
+        
+        # Assigning regex classifications for the rest
+        df.loc[~llm_needed_mask, "Subcategory"] = df.loc[~llm_needed_mask, "Details"].apply(classify_with_regex)
+        df.loc[~llm_needed_mask, "Method"] = "regex"
+    
+        # Split subcategory into parent + child
+        def split_subcategory(subcat):
+            if pd.isna(subcat):
+                return ("Unclassified", "Unclassified")
             
-        # Time filter
-        # st.markdown("### Filter by Time")
+            match = re.match(r"(.+?)\s*\((.+)\)", subcat)
+            if match:
+                return match.group(1).strip(), match.group(2).strip()
+            else:
+                return subcat.strip(), subcat.strip()
         
-        filtered_df = df_viz.copy()
+        df[["MainCategory", "SubCategoryDetail"]] = df["Subcategory"].apply(
+            lambda x: pd.Series(split_subcategory(x))
+        )
+    
+        # Download CSV
+        csv_bytes = df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download as CSV",
+            data=csv_bytes,
+            file_name="mpesa_classified.csv",
+            mime="text/csv"
+        )
         
-        # Year filter
-        year_options = sorted(filtered_df['Year'].dropna().unique())
-        selected_year = st.selectbox("Select Year:", ["All"] + list(year_options))
-        
-        if selected_year != "All":
-            filtered_df = filtered_df[filtered_df['Year'] == selected_year]
-        
-        # Month filter
-        month_options = sorted(filtered_df['Month'].dropna().unique())
-        selected_month = st.selectbox("Select Month:", ["All"] + list(month_options))
-        
-        if selected_month != "All":
-            filtered_df = filtered_df[filtered_df['Month'] == selected_month]
-        
-        # Day of Month filter
-        day_options = sorted(filtered_df['Date'].dropna().unique())
-        selected_day = st.selectbox("Select Day of Month:", ["All"] + list(day_options))
-        
-        if selected_day != "All":
-            filtered_df = filtered_df[filtered_df['Date'] == selected_day]
-        
-        # Day of Week filter
-        day_options = sorted(filtered_df['Day'].dropna().unique())
-        selected_day_name = st.selectbox("Select Day of Week:", ["All"] + list(day_options))
-        
-        if selected_day_name != "All":
-            filtered_df = filtered_df[filtered_df['Day'] == selected_day_name]
-
-        # Net cash flow trend
-        cashflow_df = filtered_df.groupby("Completion Time")["Amount"].sum().reset_index()
-        
-        chart_cashflow = alt.Chart(cashflow_df).mark_line(point=True).encode(
-            x=alt.X("Completion Time:T", title="Date"),
-            y=alt.Y("Amount:Q", title="Net Cash Flow (Ksh)"),
-            tooltip=["Completion Time:T", "Amount:Q"]
-        ).properties(height=200)
-        
-        st.markdown("### Net Cash Flow Trend")
-        st.altair_chart(chart_cashflow, use_container_width=True)
-
+        # Visualizations
+        st.header("Transaction Visualizations")
+    
+        # Filtering out Neutral
+        df_viz = df[df["Category"] != "Neutral"].copy()
+    
+        # Taking absolute values for expenses
+        df_viz["Abs_Amount"] = df_viz["Amount"].abs()
+    
+    
+    
+    
+        col1, col2 = st.columns([1, 2])
+    
+        # Left
+    
+        with col1:
+            # Tooltip
+            with st.expander("How transactions are classified"):
+                st.write(
+                    """
+                    Transactions are categorized based on keyword patterns:
             
-        # Total amounts by category
-        st.markdown("### Income vs Expenses")
-
-        category_summary = filtered_df.groupby("Category")["Abs_Amount"].sum().reset_index()
-        
-        if not category_summary.empty:
-            chart_total = alt.Chart(category_summary).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
-                x=alt.X("Category:N", sort=None, title="Category"),
-
-
-                y=alt.Y("Abs_Amount:Q", title="Amount (Ksh)"),
-                color=alt.Color("Category:N", legend=None),
-                tooltip=[alt.Tooltip("Category:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
-            ).properties(width=200, height=400)
-
-            st.altair_chart(chart_total, use_container_width=True)
-        else:
-            st.info("No transactions for the selected time filter.")
-        
-
-        
-    # Right
-
-    with col2:
-        st.markdown("### Subcategory Breakdown")
-        
-        if not filtered_df.empty:
-            # select a category to visualize
-            category_options = filtered_df["Category"].unique().tolist()
-            selected_cat = st.selectbox("Select Category to visualize:", category_options)
+                    **Income** - money coming into M-PESA:
+                    - **Received:** transfers sent into your M-PESA account from others  
+                    - **M-PESA Deposits:** cash deposited into your M-PESA via agents
+                    - **M-Shwari Withdrawals:** cash deposited into your M-PESA from M-Shwari
+                    - **Reversals:** any reversed transactions  
             
-            cat_df = filtered_df[filtered_df["Category"] == selected_cat].copy()
+                    **Expenses** - money leaving M-PESA:
+                    - **Sent:** cash transfered to others via Send Money  
+                    - **Shopping:** payments to till numbers or Pochi la Biashara  
+                    - **Bills:** Paybill payments, electricity (KPLC), online bills, airtime, data bundles  
+                    - **M-PESA Withdrawals:** cash withdrawn from your M-PESA via agents
+                    - **M-Shwari Deposits:** cash moved from your M-PESA to M-Shwari 
+                    - **Transaction Costs:** charges for withdrawals, transfers, Paybill payments  
             
-            # Aggregate by main category (before brackets)
-            main_summary = (
-                cat_df.groupby("MainCategory")["Abs_Amount"]
-                .sum()
-                .reset_index()
-                .sort_values("Abs_Amount", ascending=True)
-            )
+                    Transactions with unclear descriptions are classified using AI.
+                    """
+                )
+                
+            # Time filter
+            # st.markdown("### Filter by Time")
             
-            chart_main = alt.Chart(main_summary).mark_bar(
-                cornerRadiusTopLeft=3, cornerRadiusTopRight=3
-            ).encode(
-                y=alt.Y("MainCategory:N", sort="-x", title="Main Category"),
-                x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
-                color=alt.Color("MainCategory:N", legend=None),
-                tooltip=[alt.Tooltip("MainCategory:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
-            ).properties(width=500, height=400)
+            filtered_df = df_viz.copy()
             
-            st.altair_chart(chart_main, use_container_width=True)
-
-            # Select MAIN category 
-            main_options = cat_df["MainCategory"].unique().tolist()
-            selected_main = st.selectbox("Select Subcategory:", main_options)
+            # Year filter
+            year_options = sorted(filtered_df['Year'].dropna().unique())
+            selected_year = st.selectbox("Select Year:", ["All"] + list(year_options))
             
-            main_df = cat_df[cat_df["MainCategory"] == selected_main]
+            if selected_year != "All":
+                filtered_df = filtered_df[filtered_df['Year'] == selected_year]
             
-            # Keep only rows where SubCategoryDetail exists
-            detail_df = main_df[main_df["SubCategoryDetail"].notna() & (main_df["SubCategoryDetail"] != "")]
+            # Month filter
+            month_options = sorted(filtered_df['Month'].dropna().unique())
+            selected_month = st.selectbox("Select Month:", ["All"] + list(month_options))
             
-            # Only show subcategory breakdown chart if there are subdetails
-            if not detail_df.empty:
-                detail_summary = (
-                    detail_df.groupby("SubCategoryDetail")["Abs_Amount"]
+            if selected_month != "All":
+                filtered_df = filtered_df[filtered_df['Month'] == selected_month]
+            
+            # Day of Month filter
+            day_options = sorted(filtered_df['Date'].dropna().unique())
+            selected_day = st.selectbox("Select Day of Month:", ["All"] + list(day_options))
+            
+            if selected_day != "All":
+                filtered_df = filtered_df[filtered_df['Date'] == selected_day]
+            
+            # Day of Week filter
+            day_options = sorted(filtered_df['Day'].dropna().unique())
+            selected_day_name = st.selectbox("Select Day of Week:", ["All"] + list(day_options))
+            
+            if selected_day_name != "All":
+                filtered_df = filtered_df[filtered_df['Day'] == selected_day_name]
+    
+            # Net cash flow trend
+            cashflow_df = filtered_df.groupby("Completion Time")["Amount"].sum().reset_index()
+            
+            chart_cashflow = alt.Chart(cashflow_df).mark_line(point=True).encode(
+                x=alt.X("Completion Time:T", title="Date"),
+                y=alt.Y("Amount:Q", title="Net Cash Flow (Ksh)"),
+                tooltip=["Completion Time:T", "Amount:Q"]
+            ).properties(height=200)
+            
+            st.markdown("### Net Cash Flow Trend")
+            st.altair_chart(chart_cashflow, use_container_width=True)
+    
+                
+            # Total amounts by category
+            st.markdown("### Income vs Expenses")
+    
+            category_summary = filtered_df.groupby("Category")["Abs_Amount"].sum().reset_index()
+            
+            if not category_summary.empty:
+                chart_total = alt.Chart(category_summary).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
+                    x=alt.X("Category:N", sort=None, title="Category"),
+    
+    
+                    y=alt.Y("Abs_Amount:Q", title="Amount (Ksh)"),
+                    color=alt.Color("Category:N", legend=None),
+                    tooltip=[alt.Tooltip("Category:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+                ).properties(width=200, height=400)
+    
+                st.altair_chart(chart_total, use_container_width=True)
+            else:
+                st.info("No transactions for the selected time filter.")
+            
+    
+            
+        # Right
+    
+        with col2:
+            st.markdown("### Subcategory Breakdown")
+            
+            if not filtered_df.empty:
+                # select a category to visualize
+                category_options = filtered_df["Category"].unique().tolist()
+                selected_cat = st.selectbox("Select Category to visualize:", category_options)
+                
+                cat_df = filtered_df[filtered_df["Category"] == selected_cat].copy()
+                
+                # Aggregate by main category (before brackets)
+                main_summary = (
+                    cat_df.groupby("MainCategory")["Abs_Amount"]
                     .sum()
                     .reset_index()
                     .sort_values("Abs_Amount", ascending=True)
                 )
-            
-                chart_detail = alt.Chart(detail_summary).mark_bar(
+                
+                chart_main = alt.Chart(main_summary).mark_bar(
                     cornerRadiusTopLeft=3, cornerRadiusTopRight=3
                 ).encode(
-                    y=alt.Y("SubCategoryDetail:N", sort="-x", title="Subcategory Detail"),
+                    y=alt.Y("MainCategory:N", sort="-x", title="Main Category"),
                     x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
-                    color=alt.Color("SubCategoryDetail:N", legend=None),
-                    tooltip=[alt.Tooltip("SubCategoryDetail:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+                    color=alt.Color("MainCategory:N", legend=None),
+                    tooltip=[alt.Tooltip("MainCategory:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
                 ).properties(width=500, height=400)
-            
-                st.altair_chart(chart_detail, use_container_width=True)
-            
-                # Dropdown for selecting subdetail only if there are subdetails
-                detail_options = detail_df["SubCategoryDetail"].unique().tolist()
-                selected_detail = st.selectbox(
-                    "See details of the top transactions in the subcategory:", 
-                    detail_options
-                )
                 
-                notes_df = (
-                    main_df[main_df["SubCategoryDetail"] == selected_detail]
-                    .groupby("Notes")["Abs_Amount"]
-                    .sum()
-                    .reset_index()
-                    .sort_values("Abs_Amount", ascending=False)
-                    .head(15)
-                )
-            
-            else:
-                # No subdetails exist, go straight to top transactions
-                selected_detail = None
-                notes_df = (
-                    main_df.groupby("Notes")["Abs_Amount"]
-                    .sum()
-                    .reset_index()
-                    .sort_values("Abs_Amount", ascending=False)
-                    .head(15)
-                )
-            
-            # Plot top transaction details
-            if not notes_df.empty:
-                chart_notes = alt.Chart(notes_df).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
-                    y=alt.Y("Notes:N", sort="-x", title="Transaction Details"),
-                    x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
-                    color=alt.Color("Notes:N", legend=None),
-                    tooltip=[alt.Tooltip("Notes:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
-                ).properties(width=500, height=400)
-            
-                st.altair_chart(chart_notes, use_container_width=True)
-            else:
-                st.info("No detail available for this Subcategory.")
+                st.altair_chart(chart_main, use_container_width=True)
+    
+                # Select MAIN category 
+                main_options = cat_df["MainCategory"].unique().tolist()
+                selected_main = st.selectbox("Select Subcategory:", main_options)
+                
+                main_df = cat_df[cat_df["MainCategory"] == selected_main]
+                
+                # Keep only rows where SubCategoryDetail exists
+                detail_df = main_df[main_df["SubCategoryDetail"].notna() & (main_df["SubCategoryDetail"] != "")]
+                
+                # Only show subcategory breakdown chart if there are subdetails
+                if not detail_df.empty:
+                    detail_summary = (
+                        detail_df.groupby("SubCategoryDetail")["Abs_Amount"]
+                        .sum()
+                        .reset_index()
+                        .sort_values("Abs_Amount", ascending=True)
+                    )
+                
+                    chart_detail = alt.Chart(detail_summary).mark_bar(
+                        cornerRadiusTopLeft=3, cornerRadiusTopRight=3
+                    ).encode(
+                        y=alt.Y("SubCategoryDetail:N", sort="-x", title="Subcategory Detail"),
+                        x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
+                        color=alt.Color("SubCategoryDetail:N", legend=None),
+                        tooltip=[alt.Tooltip("SubCategoryDetail:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+                    ).properties(width=500, height=400)
+                
+                    st.altair_chart(chart_detail, use_container_width=True)
+                
+                    # Dropdown for selecting subdetail only if there are subdetails
+                    detail_options = detail_df["SubCategoryDetail"].unique().tolist()
+                    selected_detail = st.selectbox(
+                        "See details of the top transactions in the subcategory:", 
+                        detail_options
+                    )
+                    
+                    notes_df = (
+                        main_df[main_df["SubCategoryDetail"] == selected_detail]
+                        .groupby("Notes")["Abs_Amount"]
+                        .sum()
+                        .reset_index()
+                        .sort_values("Abs_Amount", ascending=False)
+                        .head(15)
+                    )
+                
+                else:
+                    # No subdetails exist, go straight to top transactions
+                    selected_detail = None
+                    notes_df = (
+                        main_df.groupby("Notes")["Abs_Amount"]
+                        .sum()
+                        .reset_index()
+                        .sort_values("Abs_Amount", ascending=False)
+                        .head(15)
+                    )
+                
+                # Plot top transaction details
+                if not notes_df.empty:
+                    chart_notes = alt.Chart(notes_df).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
+                        y=alt.Y("Notes:N", sort="-x", title="Transaction Details"),
+                        x=alt.X("Abs_Amount:Q", title="Amount (Ksh)"),
+                        color=alt.Color("Notes:N", legend=None),
+                        tooltip=[alt.Tooltip("Notes:N"), alt.Tooltip("Abs_Amount:Q", format=",.2f")]
+                    ).properties(width=500, height=400)
+                
+                    st.altair_chart(chart_notes, use_container_width=True)
+                else:
+                    st.info("No detail available for this Subcategory.")
