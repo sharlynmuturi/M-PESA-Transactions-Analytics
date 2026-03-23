@@ -313,7 +313,7 @@ if uploaded_file:
             )
             
         # Time filter
-        st.markdown("### Filter by Time")
+        # st.markdown("### Filter by Time")
         
         filtered_df = df_viz.copy()
         
