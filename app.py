@@ -75,7 +75,7 @@ def classify_transactions_batch(text_list):
     text_list: list of transaction strings
     Returns: list of categories in the same order
     """
-    # Build prompt for all transactions at once
+    # Building prompt for all transactions at once
     prompt = "You are a financial transaction classifier. Classify each transaction into one of the following categories:\n\n"
     prompt += "M-PESA Deposits, M-Shwari Deposits, MPESA Withdrawals, M-Shwari Withdrawals, Received (Send Money), Received (Bank), Sent (Send Money), Shopping (Till), Shopping (Pochi la Biashara),Bills (Online), Bills (Paybill), Bills (Electricity), Bills (Data Bundles), Bills (Airtime Purchase), Transaction Costs (Send Money), Transaction Costs (Paybill), Transaction Costs (Withdraw), Reversals, Unclassified.\n\n"
     prompt += "Return the category for each transaction on a separate line using <category></category> tags. Do NOT include explanations.\n\n"
@@ -162,7 +162,7 @@ if uploaded_file:
         st.warning("Kindly enter the PDF password to unlock.")
         st.stop()
 
-    # Save to BytesIO for processing
+    # Saving to BytesIO for processing
     pdf_bytes = BytesIO(uploaded_file.read())
     unlocked_bytes = BytesIO()
 
@@ -265,7 +265,7 @@ if uploaded_file:
     # Download CSV
     csv_bytes = df.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="Download Classified CSV",
+        label="Download as CSV",
         data=csv_bytes,
         file_name="mpesa_classified.csv",
         mime="text/csv"
@@ -300,21 +300,21 @@ if uploaded_file:
         if selected_year != "All":
             filtered_df = filtered_df[filtered_df['Year'] == selected_year]
         
-        # Month filter (depends on Year)
+        # Month filter
         month_options = sorted(filtered_df['Month'].dropna().unique())
         selected_month = st.selectbox("Select Month:", ["All"] + list(month_options))
         
         if selected_month != "All":
             filtered_df = filtered_df[filtered_df['Month'] == selected_month]
         
-        # Day of Month filter (depends on Year + Month)
+        # Day of Month filter
         day_options = sorted(filtered_df['Date'].dropna().unique())
         selected_day = st.selectbox("Select Day of Month:", ["All"] + list(day_options))
         
         if selected_day != "All":
             filtered_df = filtered_df[filtered_df['Date'] == selected_day]
         
-        # Day of Week filter (final layer)
+        # Day of Week filter
         day_options = sorted(filtered_df['Day'].dropna().unique())
         selected_day_name = st.selectbox("Select Day of Week:", ["All"] + list(day_options))
         
@@ -364,7 +364,7 @@ if uploaded_file:
         else:
             st.info("No transactions for the selected time filter.")
         
-        # Net cash Flow trend
+        # Net cash flow trend
         cashflow_df = filtered_df.groupby("Completion Time")["Amount"].sum().reset_index()
         
         chart_cashflow = alt.Chart(cashflow_df).mark_line(point=True).encode(
@@ -453,7 +453,7 @@ if uploaded_file:
                 )
             
             else:
-                # No subdetails exist → go straight to top transactions
+                # No subdetails exist, go straight to top transactions
                 selected_detail = None
                 notes_df = (
                     main_df.groupby("Notes")["Abs_Amount"]
