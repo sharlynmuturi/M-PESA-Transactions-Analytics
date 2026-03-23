@@ -159,7 +159,7 @@ if uploaded_file:
     # Require password
     pdf_password = st.text_input("Enter PDF password (required)", type="password")
     if not pdf_password:
-        st.warning("Kindly enter the PDF password to unlock.")
+        st.warning("Kindly enter the code password sent by Safaricom.")
         st.stop()
 
     # Saving to BytesIO for processing
