@@ -173,9 +173,9 @@ if uploaded_file:
             pdf.save(unlocked_bytes)
         st.success("PDF unlocked!")
             
-        except Exception as e:
-            st.error(f"Error unlocking PDF: {e}")
-            st.stop()
+    except Exception as e:
+        st.error(f"Error unlocking PDF: {e}")
+        st.stop()
             
     with st.spinner("Running analysis..."):
          
