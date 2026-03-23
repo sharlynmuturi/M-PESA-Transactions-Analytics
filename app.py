@@ -289,29 +289,37 @@ if uploaded_file:
 
     with col1:
         # Time filter
-        time_filter = st.radio("Filter transactions by:", ["All Time", "Year", "Month", "Week", "Day of Week"])
+        st.markdown("### Filter by Time")
         
         filtered_df = df_viz.copy()
         
-        if time_filter == "Year":
-            year_options = sorted(filtered_df['Year'].dropna().unique())
-            selected_year = st.selectbox("Select Year:", year_options)
+        # Year filter
+        year_options = sorted(filtered_df['Year'].dropna().unique())
+        selected_year = st.selectbox("Select Year:", ["All"] + list(year_options))
+        
+        if selected_year != "All":
             filtered_df = filtered_df[filtered_df['Year'] == selected_year]
         
-        elif time_filter == "Month":
-            month_options = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-            selected_month = st.selectbox("Select Month:", month_options)
+        # Month filter (depends on Year)
+        month_options = sorted(filtered_df['Month'].dropna().unique())
+        selected_month = st.selectbox("Select Month:", ["All"] + list(month_options))
+        
+        if selected_month != "All":
             filtered_df = filtered_df[filtered_df['Month'] == selected_month]
         
-        elif time_filter == "Week":
-            week_options = sorted(filtered_df['Week'].dropna().unique())
-            selected_week = st.selectbox("Select Week Number:", week_options)
-            filtered_df = filtered_df[filtered_df['Week'] == selected_week]
+        # Day of Month filter (depends on Year + Month)
+        day_options = sorted(filtered_df['Date'].dropna().unique())
+        selected_day = st.selectbox("Select Day of Month:", ["All"] + list(day_options))
         
-        elif time_filter == "Day of Week":
-            day_options = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
-            selected_day = st.selectbox("Select Day:", day_options)
-            filtered_df = filtered_df[filtered_df['Day'] == selected_day]
+        if selected_day != "All":
+            filtered_df = filtered_df[filtered_df['Date'] == selected_day]
+        
+        # Day of Week filter (final layer)
+        day_options = sorted(filtered_df['Day'].dropna().unique())
+        selected_day_name = st.selectbox("Select Day of Week:", ["All"] + list(day_options))
+        
+        if selected_day_name != "All":
+            filtered_df = filtered_df[filtered_df['Day'] == selected_day_name]
 
         # Tooltip
         with st.expander("How transactions are classified"):
