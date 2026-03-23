@@ -156,21 +156,22 @@ st.title("M-PESA Transactions Analytics Platform")
 uploaded_file = st.file_uploader("Upload your M-PESA PDF statement", type=["pdf"])
 
 if uploaded_file:
+
+    # Require password
+    pdf_password = st.text_input("Enter PDF password (required)", type="password")
+    if not pdf_password:
+        st.warning("Kindly enter the code password sent by Safaricom.")
+        st.stop()
+        
     with st.spinner("Running analysis..."):
-        # Require password
-        pdf_password = st.text_input("Enter PDF password (required)", type="password")
-        if not pdf_password:
-            st.warning("Kindly enter the code password sent by Safaricom.")
-            st.stop()
-    
-        # Saving to BytesIO for processing
+        # Saving uploaded file to BytesIO for processing
         pdf_bytes = BytesIO(uploaded_file.read())
         unlocked_bytes = BytesIO()
     
         try:
             with pikepdf.open(pdf_bytes, password=pdf_password) as pdf:
                 pdf.save(unlocked_bytes)
-            st.success("PDF unlocked successfully! Analyzing transactions...")
+            st.success("PDF unlocked successfully!")
             
         except Exception as e:
             st.error(f"Error unlocking PDF: {e}")
