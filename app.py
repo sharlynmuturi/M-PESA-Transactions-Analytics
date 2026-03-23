@@ -163,20 +163,21 @@ if uploaded_file:
         st.warning("Kindly enter the code password sent by Safaricom.")
         st.stop()
         
-    with st.spinner("Running analysis..."):
-        # Saving uploaded file to BytesIO for processing
-        pdf_bytes = BytesIO(uploaded_file.read())
-        unlocked_bytes = BytesIO()
     
-        try:
-            with pikepdf.open(pdf_bytes, password=pdf_password) as pdf:
-                pdf.save(unlocked_bytes)
-            st.success("PDF unlocked successfully!")
+    # Saving uploaded file to BytesIO for processing
+    pdf_bytes = BytesIO(uploaded_file.read())
+    unlocked_bytes = BytesIO()
+
+    try:
+        with pikepdf.open(pdf_bytes, password=pdf_password) as pdf:
+            pdf.save(unlocked_bytes)
+        st.success("PDF unlocked!")
             
         except Exception as e:
             st.error(f"Error unlocking PDF: {e}")
             st.stop()
-    
+            
+    with st.spinner("Running analysis..."):
         # Extract tables
         all_rows = []
         with pdfplumber.open(unlocked_bytes) as pdf:
