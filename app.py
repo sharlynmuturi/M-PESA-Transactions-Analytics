@@ -150,7 +150,7 @@ def label_transaction(amount):
 
 
 # Streamlit UI
-st.set_page_config(page_title="M-PESA Transactions Classifier", layout="wide")
+st.set_page_config(page_title="M-PESA Transactions Analytics", layout="wide")
 st.title("M-PESA Transactions Analytics Platform")
 
 uploaded_file = st.file_uploader("Upload your M-PESA PDF statement", type=["pdf"])
@@ -319,17 +319,19 @@ if uploaded_file:
                 """
                 Transactions are categorized based on keyword patterns:
         
-                **Income** – money coming into M-PESA:
+                **Income** - money coming into M-PESA:
                 - **Received:** transfers sent into your M-PESA account from others  
-                - **Deposits:** cash deposited via agents or deposited from M-Shwari  
+                - **M-PESA Deposits:** cash deposited into your M-PESA via agents
+                - **M-Shwari Withdrawals:** cash deposited into your M-PESA from M-Shwari
                 - **Reversals:** any reversed transactions  
         
-                **Expenses** – money leaving M-PESA:
-                - **Sent:** transfered to others via Send Money  
+                **Expenses** - money leaving M-PESA:
+                - **Sent:** cash transfered to others via Send Money  
                 - **Shopping:** payments to till numbers or Pochi la Biashara  
-                - **Bills:** Paybill payments, electricity (KPLC), airtime, or data bundles  
-                - **Withdrawals:** cash withdrawn from M-PESA or moved to M-Shwari  
-                - **Transaction Costs:** charges for withdrawals, transfers, or Paybill payments  
+                - **Bills:** Paybill payments, electricity (KPLC), online bills, airtime, data bundles  
+                - **M-PESA Withdrawals:** cash withdrawn from your M-PESA via agents
+                - **M-Shwari Deposits:** cash moved from your M-PESA to M-Shwari 
+                - **Transaction Costs:** charges for withdrawals, transfers, Paybill payments  
         
                 Transactions with unclear descriptions are classified using AI.
                 """
