@@ -271,7 +271,7 @@ if uploaded_file:
         mime="text/csv"
     )
     
-   # Visualizations
+    # Visualizations
     st.header("Transaction Visualizations")
 
     # Filtering out Neutral
