@@ -345,17 +345,6 @@ if uploaded_file:
         if selected_day_name != "All":
             filtered_df = filtered_df[filtered_df['Day'] == selected_day_name]
 
-        # Net cash flow trend
-        cashflow_df = filtered_df.groupby("Completion Time")["Amount"].sum().reset_index()
-        
-        chart_cashflow = alt.Chart(cashflow_df).mark_line(point=True).encode(
-            x=alt.X("Completion Time:T", title="Date"),
-            y=alt.Y("Amount:Q", title="Net Cash Flow (Ksh)"),
-            tooltip=["Completion Time:T", "Amount:Q"]
-        ).properties(height=200)
-        
-        st.markdown("### Net Cash Flow Trend")
-        st.altair_chart(chart_cashflow, use_container_width=True)
             
         # Total amounts by category
         st.markdown("### Income vs Expenses")
@@ -375,6 +364,18 @@ if uploaded_file:
             st.altair_chart(chart_total, use_container_width=True)
         else:
             st.info("No transactions for the selected time filter.")
+        
+        # Net cash flow trend
+        cashflow_df = filtered_df.groupby("Completion Time")["Amount"].sum().reset_index()
+        
+        chart_cashflow = alt.Chart(cashflow_df).mark_line(point=True).encode(
+            x=alt.X("Completion Time:T", title="Date"),
+            y=alt.Y("Amount:Q", title="Net Cash Flow (Ksh)"),
+            tooltip=["Completion Time:T", "Amount:Q"]
+        ).properties(height=200)
+        
+        st.markdown("### Net Cash Flow Trend")
+        st.altair_chart(chart_cashflow, use_container_width=True)
         
     # Right
 
